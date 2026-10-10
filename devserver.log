@@ -4,32 +4,15 @@
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 2s
- ○ Compiling /dashboard ...
-(node:32996) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+ ✓ Ready in 2.1s
+ ○ Compiling / ...
+(node:22476) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled /dashboard in 4.1s (708 modules)
- GET /dashboard 307 in 4552ms
- ○ Compiling /api/auth/login ...
- ✓ Compiled /api/auth/login in 1433ms (741 modules)
- POST /api/auth/login 200 in 1778ms
- ✓ Compiled / in 193ms (729 modules)
- GET / 307 in 400ms
- GET /dashboard 200 in 131ms
- GET /dashboard 200 in 72ms
- ✓ Compiled /transactions in 259ms (740 modules)
- GET /transactions 200 in 559ms
- ✓ Compiled /budgets in 269ms (749 modules)
- GET /budgets 200 in 486ms
- ○ Compiling /tasks ...
- ✓ Compiled /tasks in 618ms (760 modules)
- GET /tasks 200 in 849ms
- ✓ Compiled /calendar in 342ms (773 modules)
- GET /calendar 200 in 588ms
- ○ Compiling /reports ...
- ✓ Compiled /reports in 2.6s (1824 modules)
- GET /reports 200 in 2987ms
- ✓ Compiled /assistant in 400ms (1839 modules)
- GET /assistant 200 in 628ms
- ✓ Compiled /settings in 414ms (1848 modules)
- GET /settings 200 in 632ms
+ ✓ Compiled / in 3.3s (568 modules)
+ GET / 307 in 3723ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1486ms (672 modules)
+ GET /login 200 in 1744ms
+ ✓ Compiled /dashboard in 324ms (712 modules)
+ GET /dashboard 307 in 611ms
+ GET /login 200 in 57ms

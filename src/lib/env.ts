@@ -1,7 +1,7 @@
 export function env(): Record<string, string> {
   const v = process.env;
   return {
-    databaseUrl: v.DATABASE_URL ?? "file:./dev.db",
+    databaseUrl: v.DATABASE_URL ?? "",
     sessionSecret: v.SESSION_SECRET ?? "",
     sessionCookieName: v.SESSION_COOKIE_NAME ?? "pa_session",
     geminiApiKey: v.GEMINI_API_KEY ?? "",

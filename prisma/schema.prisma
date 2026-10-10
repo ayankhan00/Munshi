@@ -1,15 +1,15 @@
 // Personal AI Finance, Tasks & Reminder Assistant
-// Dev database: SQLite (zero-config, fully portable). Production: PostgreSQL.
-// NOTE: SQLite does not support Prisma enums, so "enum" fields are Strings with
-// server-side Zod validation. Integer columns store money in minor units (paisa).
+// Database: PostgreSQL (Supabase). Enum-like fields are Strings with server-side
+// Zod validation. Integer columns store money in minor units (paisa).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

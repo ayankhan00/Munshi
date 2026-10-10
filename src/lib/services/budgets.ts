@@ -34,9 +34,9 @@ export async function setBudget(userId: string, input: BudgetInput) {
     });
   }
 
-  // SQLite treats NULL as distinct in unique indexes, so the composite unique
-  // key cannot be used to upsert an "overall" (category-less) budget. Handle it
-  // with an explicit find-then-write.
+  // PostgreSQL (like SQLite) treats NULL as distinct in unique indexes, so the
+  // composite unique key cannot be used to upsert an "overall" (category-less)
+  // budget. Handle it with an explicit find-then-write.
   const existing = await prisma.budget.findFirst({
     where: { userId, categoryId: null, period },
   });
