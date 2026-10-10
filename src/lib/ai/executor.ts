@@ -3,7 +3,7 @@ import { createTransaction, getCurrentBalance } from "@/lib/services/transaction
 import { categoryBreakdown } from "@/lib/services/reports";
 import { createTask, listTasks } from "@/lib/services/tasks";
 import { createReminder } from "@/lib/services/reminders";
-import { currentMonthKey, formatDateTime } from "@/lib/dates";
+import { currentMonthKey, formatDateTime, dateKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { parseNaturalDateTime } from "@/lib/dates";
 import type { ParsedIntent } from "./types";
@@ -95,23 +95,10 @@ async function executeExpense(
   };
 }
 
-function intentMappedDate(date?: string, tz?: string): string | undefined {
+export function intentMappedDate(date?: string, tz?: string, now = new Date()): string | undefined {
   if (!date || !tz) return undefined;
-  const today = new Date();
-  if (date === "today") {
-    return new Date().toISOString().slice(0, 10);
-  }
-  if (date === "yesterday") {
-    const d = new Date(today.getTime() - 86400000);
-    return d.toISOString().slice(0, 10);
-  }
-  if (date === "tomorrow") {
-    const d = new Date(today.getTime() + 86400000);
-    return d.toISOString().slice(0, 10);
-  }
-  const parsed = parseNaturalDateTime(date, tz);
-  if (parsed) return parsed.date.toISOString().slice(0, 10);
-  return undefined;
+  const parsed = parseNaturalDateTime(date, tz, now);
+  return parsed ? dateKey(parsed.date, tz) : undefined;
 }
 
 async function executeBalance(ctx: ExecutorContext): Promise<ExecutorResult> {

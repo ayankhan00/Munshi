@@ -61,6 +61,10 @@ export function formatDateTime(date: Date, tz: string): string {
   return formatInTimeZone(date, tz, "MMM d, yyyy h:mm a");
 }
 
+export function dateKey(date: Date, tz: string): string {
+  return formatInTimeZone(date, tz, "yyyy-MM-dd");
+}
+
 export function formatDate(date: Date, tz: string): string {
   return formatInTimeZone(date, tz, "MMM d, yyyy");
 }

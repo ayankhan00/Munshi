@@ -40,6 +40,7 @@ interface ReportOverview {
     categories: CategorySlice[];
   };
   series: Array<{ monthKey: string; incomeMinor: number; expenseMinor: number }>;
+  dailyExpense: Array<{ date: string; label: string; minor: number }>;
   currency: string;
 }
 
@@ -92,11 +93,7 @@ export default function ReportsPage() {
   const expense = data?.breakdown.totalExpenseMinor ?? 0;
   const net = income - expense;
   const categories = data?.breakdown.categories ?? [];
-  const series = (data?.series ?? []).map((s) => ({
-    label: s.monthKey,
-    incomeMinor: s.incomeMinor,
-    expenseMinor: s.expenseMinor,
-  }));
+  const dailyExpense = data?.dailyExpense ?? [];
   const hasData = income > 0 || expense > 0;
 
   return (
@@ -202,23 +199,22 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Income vs expenses (6 months)</CardTitle>
+                <CardTitle>Last 7 days&apos; expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                {series.length === 0 ? (
+                {dailyExpense.every((d) => d.minor === 0) ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    Not enough data yet.
+                    No expenses in the last 7 days.
                   </p>
                 ) : (
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={series}>
+                      <BarChart data={dailyExpense}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" fontSize={11} />
                         <YAxis fontSize={11} tickFormatter={(v: number) => formatMoney(v)} />
                         <Tooltip formatter={(value: number) => formatMoney(value)} />
-                        <Bar dataKey="incomeMinor" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="expenseMinor" name="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="minor" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

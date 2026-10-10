@@ -3,7 +3,7 @@ import { unwrapAsync, requireApiUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { jsonError } from "@/lib/http";
 import { env } from "@/lib/env";
-import { categoryBreakdown, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses } from "@/lib/services/reports";
+import { categoryBreakdown, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses, recentDailyExpense } from "@/lib/services/reports";
 import { getCurrentBalance } from "@/lib/services/transactions";
 import { currentMonthKey } from "@/lib/dates";
 import { formatInTimeZone } from "date-fns-tz";
@@ -35,10 +35,11 @@ export async function GET(request: NextRequest) {
       return recurringExpenses(user.id, months);
     }
 
-    const [balance, breakdown, series] = await Promise.all([
+    const [balance, breakdown, series, dailyExpense] = await Promise.all([
       getCurrentBalance(user.id),
       categoryBreakdown(user.id, user.timezone, user.financialMonthStartDay, [monthKey]),
       monthlySeries(user.id, user.timezone, user.financialMonthStartDay, 6),
+      recentDailyExpense(user.id, user.timezone, 7),
     ]);
 
     return {
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
       balance,
       breakdown,
       series,
+      dailyExpense,
       currency: user.currency,
     };
   });

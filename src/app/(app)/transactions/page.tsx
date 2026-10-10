@@ -43,6 +43,13 @@ const TYPE_LABEL: Record<string, string> = {
   adjustment: "Adjustment",
 };
 
+function todayLocal(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 export default function TransactionsPage() {
   const [rows, setRows] = useState<TxRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -57,7 +64,7 @@ export default function TransactionsPage() {
     categoryId: "",
     accountId: "",
     description: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: todayLocal(),
   });
 
   const loadRows = useCallback(async () => {

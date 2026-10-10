@@ -4,7 +4,11 @@ import {
   periodKey,
   currentMonthKey,
   fnAddMonths,
+  startOfDayZoned,
+  dateKey,
+  fnAddDays,
 } from "@/lib/dates";
+import { formatInTimeZone } from "date-fns-tz";
 
 export async function rangeSummulative(userId: string, opts: { from: Date; toExclusive: Date }) {
   const txns = await prisma.transaction.findMany({
@@ -111,6 +115,43 @@ export async function dailyTrend(
   return [...byDay.entries()]
     .map(([day, minor]) => ({ day, minor }))
     .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+export async function recentDailyExpense(
+  userId: string,
+  tz: string,
+  days = 7,
+) {
+  const todayStart = startOfDayZoned(new Date(), tz);
+  const start = fnAddDays(todayStart, -(days - 1));
+  const endExclusive = fnAddDays(todayStart, 1);
+
+  const txns = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      type: "expense",
+      occurredAt: { gte: start, lt: endExclusive },
+    },
+  });
+
+  const totals = new Map<string, number>();
+  for (const t of txns) {
+    const key = dateKey(t.occurredAt, tz);
+    totals.set(key, (totals.get(key) ?? 0) + t.amountMinor);
+  }
+
+  const out: Array<{ date: string; label: string; minor: number }> = [];
+  for (let i = 0; i < days; i++) {
+    const dayDate = fnAddDays(start, i);
+    const key = dateKey(dayDate, tz);
+    out.push({
+      date: key,
+      label: formatInTimeZone(dayDate, tz, "EEE d"),
+      minor: totals.get(key) ?? 0,
+    });
+  }
+  return out;
 }
 
 export async function topExpenses(
