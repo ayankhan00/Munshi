@@ -1,0 +1,16 @@
+   ▲ Next.js 15.5.27
+   - Local:        http://localhost:3000
+   - Network:      http://26.255.34.6:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2s
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 2.3s (331 modules)
+ POST /api/auth/login 200 in 2765ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 1646ms (677 modules)
+ POST /api/assistant 200 in 3077ms
+ ✓ Compiled /api/transactions in 179ms (679 modules)
+ GET /api/transactions?pageSize=1 200 in 291ms
+ DELETE /api/transactions?id=cmv2yqpeh00073m40k99vembz 200 in 213ms

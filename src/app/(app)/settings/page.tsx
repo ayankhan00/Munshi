@@ -1,0 +1,309 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { api } from "@/lib/client-api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input, Select } from "@/components/ui/input";
+import { Label, FieldGroup } from "@/components/ui/label";
+import { LoadingState } from "@/components/ui/spinner";
+import { PageHeader } from "@/components/ui/page-header";
+
+interface Me {
+  id: string;
+  email: string;
+  name?: string | null;
+  currency: string;
+  timezone: string;
+  monthlySalaryMinor: number;
+  salaryDay: number;
+  openingBalanceMinor: number;
+  savingsGoalMinor: number;
+  financialMonthStartDay: number;
+  notificationsEnabled: boolean;
+  theme: string;
+}
+
+const TIMEZONES = [
+  "Asia/Karachi",
+  "Asia/Kolkata",
+  "Asia/Dubai",
+  "UTC",
+  "Europe/London",
+  "America/New_York",
+];
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    currency: "PKR",
+    timezone: "Asia/Karachi",
+    monthlySalaryMinor: "",
+    salaryDay: 1,
+    openingBalanceMinor: "",
+    savingsGoalMinor: "",
+    notificationsEnabled: true,
+  });
+  const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api<Me>("/api/me");
+        setMe(data);
+        setForm({
+          name: data.name ?? "",
+          currency: data.currency,
+          timezone: data.timezone,
+          monthlySalaryMinor: data.monthlySalaryMinor
+            ? String(data.monthlySalaryMinor / 100)
+            : "",
+          salaryDay: data.salaryDay,
+          openingBalanceMinor: data.openingBalanceMinor
+            ? String(data.openingBalanceMinor / 100)
+            : "",
+          savingsGoalMinor: data.savingsGoalMinor ? String(data.savingsGoalMinor / 100) : "",
+          notificationsEnabled: data.notificationsEnabled,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function handleProfileSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMessage("");
+    setError("");
+    try {
+      await api("/api/me", {
+        method: "PUT",
+        body: JSON.stringify({
+          name: form.name,
+          currency: form.currency,
+          timezone: form.timezone,
+          monthlySalaryMinor: form.monthlySalaryMinor
+            ? Math.round(parseFloat(form.monthlySalaryMinor) * 100)
+            : 0,
+          salaryDay: form.salaryDay,
+          openingBalanceMinor: form.openingBalanceMinor
+            ? Math.round(parseFloat(form.openingBalanceMinor) * 100)
+            : 0,
+          savingsGoalMinor: form.savingsGoalMinor
+            ? Math.round(parseFloat(form.savingsGoalMinor) * 100)
+            : 0,
+          notificationsEnabled: form.notificationsEnabled,
+        }),
+      });
+      setMessage("Profile saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMessage("");
+    setError("");
+    try {
+      await api("/api/me/password", { method: "POST", body: JSON.stringify(pw) });
+      setMessage("Password changed.");
+      setPw({ currentPassword: "", newPassword: "" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+    }
+  }
+
+  if (loading) return <LoadingState label="Loading settings..." />;
+  if (!me) return null;
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title="Settings" description="Manage your profile and preferences." />
+
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleProfileSubmit} className="grid gap-3 sm:grid-cols-2">
+            <FieldGroup>
+              <Label htmlFor="s-name">Name</Label>
+              <Input
+                id="s-name"
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-email">Email</Label>
+              <Input id="s-email" type="email" value={me.email} disabled />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-currency">Currency</Label>
+              <Select
+                id="s-currency"
+                value={form.currency}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+              >
+                <option value="PKR">PKR (Rs.)</option>
+                <option value="INR">INR</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="AED">AED</option>
+                <option value="GBP">GBP</option>
+              </Select>
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-timezone">Timezone</Label>
+              <Select
+                id="s-timezone"
+                value={form.timezone}
+                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </Select>
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-salary">Monthly salary</Label>
+              <Input
+                id="s-salary"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 150000"
+                value={form.monthlySalaryMinor}
+                onChange={(e) => setForm({ ...form, monthlySalaryMinor: e.target.value })}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-salaryday">Salary day</Label>
+              <Input
+                id="s-salaryday"
+                type="number"
+                min={1}
+                max={28}
+                value={form.salaryDay}
+                onChange={(e) => setForm({ ...form, salaryDay: Number(e.target.value) })}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-opening">Opening balance</Label>
+              <Input
+                id="s-opening"
+                type="number"
+                step="0.01"
+                placeholder="e.g. 10000"
+                value={form.openingBalanceMinor}
+                onChange={(e) => setForm({ ...form, openingBalanceMinor: e.target.value })}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-goal">Savings goal</Label>
+              <Input
+                id="s-goal"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 50000"
+                value={form.savingsGoalMinor}
+                onChange={(e) => setForm({ ...form, savingsGoalMinor: e.target.value })}
+              />
+            </FieldGroup>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.notificationsEnabled}
+                onChange={(e) =>
+                  setForm({ ...form, notificationsEnabled: e.target.checked })
+                }
+                className="h-4 w-4 accent-primary"
+              />
+              Enable notifications
+            </label>
+            <div className="sm:col-span-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save profile"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handlePasswordSubmit} className="grid gap-3">
+            <FieldGroup>
+              <Label htmlFor="s-current">Current password</Label>
+              <Input
+                id="s-current"
+                type="password"
+                value={pw.currentPassword}
+                onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })}
+                required
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-new">New password (min 8 chars)</Label>
+              <Input
+                id="s-new"
+                type="password"
+                value={pw.newPassword}
+                onChange={(e) => setPw({ ...pw, newPassword: e.target.value })}
+                required
+                minLength={8}
+              />
+            </FieldGroup>
+            <div>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Change password"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div>
+        <Button variant="outline" onClick={handleLogout}>
+          <LogOut className="h-4 w-4" />
+          Log out
+        </Button>
+      </div>
+    </div>
+  );
+}

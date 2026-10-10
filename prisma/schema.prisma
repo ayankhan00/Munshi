@@ -1,0 +1,329 @@
+// Personal AI Finance, Tasks & Reminder Assistant
+// Dev database: SQLite (zero-config, fully portable). Production: PostgreSQL.
+// NOTE: SQLite does not support Prisma enums, so "enum" fields are Strings with
+// server-side Zod validation. Integer columns store money in minor units (paisa).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  passwordHash          String
+  name                  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Finance settings
+  currency              String   @default("PKR")
+  timezone              String   @default("Asia/Karachi")
+  monthlySalaryMinor    Int      @default(0)
+  salaryDay             Int      @default(1)
+  openingBalanceMinor   Int      @default(0)
+  savingsGoalMinor      Int      @default(0)
+  financialMonthStartDay Int     @default(1)
+  demoMode              Boolean  @default(false)
+
+  // Notification preferences
+  notificationsEnabled  Boolean  @default(true)
+  quietHoursStart       Int?     // hour 0-23
+  quietHoursEnd         Int?     // hour 0-23
+
+  // UI
+  theme                 String   @default("system")
+
+  accounts              Account[]
+  categories            Category[]
+  transactions          Transaction[]
+  budgets               Budget[]
+  tasks                 Task[]
+  reminders             Reminder[]
+  recurringRules        RecurringRule[]
+  pushSubscriptions     PushSubscription[]
+  notifications         InAppNotification[]
+  deliveryLogs          NotificationHistory[]
+  auditEvents           AuditEvent[]
+  aiSessions            AiSession[]
+  aiMessages            AiMessage[]
+  resetTokens           PasswordResetToken[]
+  sessions              Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                 String   @id @default(cuid())
+  userId             String
+  name               String
+  type               String   @default("cash") // cash | bank | wallet | credit | other
+  currency           String   @default("PKR")
+  openingBalanceMinor Int     @default(0)
+  isDefault          Boolean  @default(false)
+  archived           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions       Transaction[] @relation("accountTransactions")
+  incomingTransfers  Transaction[] @relation("transferTarget")
+
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  kind      String   @default("expense") // expense | income
+  color     String   @default("#64748b")
+  icon      String?
+  isSystem  Boolean  @default(false)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([userId, name, kind])
+  @@index([userId])
+}
+
+model Transaction {
+  id                String   @id @default(cuid())
+  userId            String
+  accountId         String
+  categoryId        String?
+  type              String   // income | expense | transfer | refund | adjustment
+  amountMinor       Int      // always positive; sign implied by type/direction
+  currency          String   @default("PKR")
+  occurredAt        DateTime // transaction date (user-facing)
+  description       String?
+  notes             String?
+  paymentMethod     String?
+  // Transfer support
+  transferAccountId String?
+  // Refund / correction link
+  sourceTransactionId String?
+  // Recurring link
+  recurringRuleId   String?
+  // Idempotency for retried requests
+  idempotencyKey    String?
+  // Soft delete + audit
+  deletedAt         DateTime?
+  adjustmentReason  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account            Account        @relation("accountTransactions", fields: [accountId], references: [id], onDelete: Restrict)
+  transferAccount    Account?       @relation("transferTarget", fields: [transferAccountId], references: [id], onDelete: SetNull)
+  category           Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recurringRule      RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@index([userId, categoryId])
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String
+  categoryId  String?
+  amountMinor Int
+  period      String   // "YYYY-MM"
+  rollover    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, period])
+  @@index([userId, period])
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  status        String    @default("pending") // pending | in_progress | completed | cancelled
+  priority      String    @default("medium") // low | medium | high | urgent
+  dueAt         DateTime?
+  completedAt   DateTime?
+  tags          String?   // comma separated
+  recurringRuleId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  reminders     Reminder[]
+
+  @@index([userId, status])
+  @@index([userId, dueAt])
+}
+
+model Reminder {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  body          String?
+  remindAt      DateTime
+  timezone      String    @default("Asia/Karachi")
+  type          String    @default("custom") // bill | task | salary | budget | custom
+  status        String    @default("pending") // pending | sent | cancelled | done
+  recurrence    String?   // none | daily | weekly | monthly | yearly
+  relatedTaskId String?
+  dedupeKey     String?
+  lastSentAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task  Task? @relation(fields: [relatedTaskId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, remindAt])
+  @@index([status, remindAt])
+}
+
+model RecurringRule {
+  id          String    @id @default(cuid())
+  userId      String
+  kind        String    // transaction | task
+  frequency   String    // daily | weekly | monthly | yearly
+  interval    Int       @default(1)
+  nextRunAt   DateTime
+  template    String    // JSON template
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  tasks        Task[]
+
+  @@index([userId, active])
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  disabled   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model InAppNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  type      String    @default("info") // info | reminder | warning | success
+  url       String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model NotificationHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  reminderId String?
+  title      String
+  body       String?
+  channel    String   // inapp | push
+  status     String   // sent | failed | skipped
+  error      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // create | update | delete | adjust | refund
+  entityType String
+  entityId   String
+  before     String?  // JSON
+  after      String?  // JSON
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entityType, entityId])
+}
+
+model AiSession {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("New conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiMessage[]
+
+  @@index([userId])
+}
+
+model AiMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String
+  role      String   // user | assistant | system
+  content   String
+  intent    String?
+  payload   String?  // JSON structured result
+  createdAt DateTime @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AiSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sessionId])
+}
