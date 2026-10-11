@@ -78,6 +78,8 @@ export default function AssistantPage() {
   const pendingFinalRef = useRef("");
   const voiceTextRef = useRef("");
   const voiceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceCommittedRef = useRef(false);
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -156,7 +158,8 @@ export default function AssistantPage() {
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || sendingRef.current) return;
+    sendingRef.current = true;
     setMessages((m) => [...m, { role: "user", content: trimmed }]);
     setInput("");
     setLoading(true);
@@ -187,6 +190,7 @@ export default function AssistantPage() {
         },
       ]);
     } finally {
+      sendingRef.current = false;
       setLoading(false);
     }
   }
@@ -207,6 +211,7 @@ export default function AssistantPage() {
     clearVoiceTimer();
     voiceTimerRef.current = setTimeout(() => {
       voiceTimerRef.current = null;
+      voiceCommittedRef.current = true;
       const text = voiceTextRef.current.trim();
       voiceTextRef.current = "";
       pendingFinalRef.current = "";
@@ -226,6 +231,7 @@ export default function AssistantPage() {
 
     if (listening) {
       clearVoiceTimer();
+      voiceCommittedRef.current = true;
       const text = voiceTextRef.current.trim();
       voiceTextRef.current = "";
       pendingFinalRef.current = "";
@@ -239,6 +245,7 @@ export default function AssistantPage() {
       return;
     }
 
+    voiceCommittedRef.current = false;
     pendingFinalRef.current = "";
     voiceTextRef.current = "";
 
@@ -250,6 +257,7 @@ export default function AssistantPage() {
 
     recognition.onstart = () => setListening(true);
     recognition.onresult = (event) => {
+      if (voiceCommittedRef.current) return;
       let interim = "";
       let final = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
