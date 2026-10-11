@@ -20,7 +20,7 @@ export default function SignupPage() {
 
   useEffect(() => {
     fetch("/api/me").then((r) => {
-      if (r.ok) router.replace("/dashboard");
+      if (r.ok) router.replace("/assistant");
     });
   }, [router]);
 

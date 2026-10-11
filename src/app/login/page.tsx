@@ -22,7 +22,7 @@ export default function LoginPage() {
   useEffect(() => {
     fetch("/api/me")
       .then((r) => {
-        if (r.ok) router.replace("/dashboard");
+        if (r.ok) router.replace("/assistant");
       })
       .finally(() => setChecking(false));
   }, [router]);
@@ -37,7 +37,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
         skipAuthRedirect: true,
       });
-      router.push("/dashboard");
+      router.push("/assistant");
     } catch (err) {
       setError(
         err instanceof ClientError

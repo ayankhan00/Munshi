@@ -22,13 +22,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
+  { href: "/assistant", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Reminders", icon: BellRing },
   { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/assistant", label: "AI Assistant", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 

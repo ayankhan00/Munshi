@@ -71,3 +71,20 @@
  GET /api/assistant?sessionId=cmv3rrzsh00493mqgrs2gsdii 200 in 4096ms
  GET /assistant 307 in 219ms
 prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+ ✓ Compiled in 362ms (289 modules)
+ ✓ Compiled in 241ms (289 modules)
+ GET /settings 200 in 3679ms
+ GET /settings 200 in 2943ms
+ ✓ Compiled in 181ms (289 modules)
+ GET /settings 200 in 2204ms
+ ✓ Compiled in 246ms (289 modules)
+ GET /settings 200 in 2215ms
+ ✓ Compiled /api/me in 737ms (738 modules)
+ ✓ Compiled in 0ms (481 modules)
+ GET /settings 200 in 5084ms
+ GET /api/me 200 in 6371ms
+ ✓ Compiled / in 464ms (758 modules)
+ GET / 307 in 858ms
+ ✓ Compiled /api/auth/register in 429ms (487 modules)
+ POST /api/auth/register 201 in 6298ms
+ GET / 307 in 2316ms
