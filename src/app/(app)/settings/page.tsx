@@ -10,6 +10,12 @@ import { Input, Select } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
 import { LoadingState } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  enablePush,
+  disablePush,
+  getPushStatus,
+  type PushStatus,
+} from "@/lib/push-client";
 
 interface Me {
   id: string;
@@ -53,6 +59,9 @@ export default function SettingsPage() {
     notificationsEnabled: true,
   });
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
+  const [pushStatus, setPushStatus] = useState<PushStatus | "loading">("loading");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -80,6 +89,41 @@ export default function SettingsPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    getPushStatus()
+      .then((status) => {
+        if (active) setPushStatus(status);
+      })
+      .catch(() => {
+        if (active) setPushStatus("unsupported");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleEnablePush() {
+    setPushBusy(true);
+    setPushMsg("");
+    setError("");
+    const result = await enablePush();
+    setPushStatus(result.status);
+    if (!result.ok) setError(result.error ?? "Failed to enable notifications.");
+    else setPushMsg("Push notifications enabled on this device.");
+    setPushBusy(false);
+  }
+
+  async function handleDisablePush() {
+    setPushBusy(true);
+    setPushMsg("");
+    setError("");
+    await disablePush();
+    setPushStatus(await getPushStatus());
+    setPushMsg("Push notifications disabled on this device.");
+    setPushBusy(false);
+  }
 
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -259,6 +303,49 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Push notifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Get reminders on this device even when Munshi isn&#39;t open.
+          </p>
+          {pushStatus === "loading" ? (
+            <p className="text-sm text-muted-foreground">Checking status...</p>
+          ) : pushStatus === "unsupported" ? (
+            <p className="text-sm text-muted-foreground">
+              Push notifications aren&#39;t supported in this browser.
+            </p>
+          ) : pushStatus === "unconfigured" ? (
+            <p className="text-sm text-muted-foreground">
+              Push isn&#39;t configured on the server.
+            </p>
+          ) : pushStatus === "subscribed" ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-emerald-600">
+                Enabled on this device
+              </span>
+              <Button variant="outline" onClick={handleDisablePush} disabled={pushBusy}>
+                {pushBusy ? "Disabling..." : "Disable"}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={handleEnablePush} disabled={pushBusy}>
+                {pushBusy ? "Enabling..." : "Enable notifications"}
+              </Button>
+              {pushStatus === "denied" ? (
+                <span className="text-sm text-muted-foreground">
+                  Blocked — allow notifications in your browser settings.
+                </span>
+              ) : null}
+            </div>
+          )}
+          {pushMsg ? <p className="text-sm text-emerald-600">{pushMsg}</p> : null}
         </CardContent>
       </Card>
 

@@ -4,100 +4,16 @@
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 9.5s
- ○ Compiling /api/auth/register ...
- ✓ Compiled /api/auth/register in 2.9s (332 modules)
- POST /api/auth/register 201 in 10306ms
- ○ Compiling /api/assistant ...
- ✓ Compiled /api/assistant in 913ms (677 modules)
- POST /api/assistant 200 in 16115ms
- POST /api/assistant 200 in 13166ms
- ○ Compiling /login ...
-(node:10024) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled /login in 3.7s (649 modules)
- GET /login 200 in 4059ms
- ✓ Compiled /assistant in 447ms (708 modules)
- GET /assistant 307 in 742ms
- GET /assistant 200 in 48ms
- GET /assistant 200 in 2474ms
- ✓ Compiled /api/assistant in 216ms (797 modules)
- POST /api/assistant 200 in 13731ms
- POST /api/assistant 200 in 13113ms
- POST /api/assistant 200 in 14017ms
- POST /api/assistant 200 in 15967ms
- POST /api/assistant 200 in 14833ms
- POST /api/assistant 200 in 15265ms
- ✓ Compiled /transactions in 475ms (1077 modules)
- GET /transactions 200 in 634ms
- ○ Compiling /api/transactions ...
- ✓ Compiled /api/transactions in 621ms (1083 modules)
- GET /api/transactions?pageSize=50&type=all 200 in 11765ms
- GET /api/categories 200 in 16125ms
- GET /api/accounts 200 in 17290ms
- GET /api/transactions?pageSize=50&type=all 200 in 12028ms
- GET /api/categories 200 in 12620ms
- GET /api/accounts 200 in 13406ms
- ○ Compiling /settings ...
- ✓ Compiled /settings in 888ms (734 modules)
- GET /settings 200 in 1268ms
- ✓ Compiled in 367ms (287 modules)
- GET /settings 200 in 30ms
- GET /settings 200 in 4051ms
- GET /settings 200 in 4936ms
- ✓ Compiled /api/me in 244ms (752 modules)
- GET /api/me 200 in 3785ms
- GET /api/me 200 in 3366ms
- ✓ Compiled /api/me/password in 339ms (755 modules)
- POST /api/me/password 200 in 5110ms
- ✓ Compiled in 221ms (287 modules)
- GET /settings 200 in 3637ms
- ✓ Compiled in 151ms (287 modules)
- GET /settings 200 in 2261ms
- ✓ Compiled /api/me in 759ms (738 modules)
- ✓ Compiled in 1ms (481 modules)
- GET /settings 200 in 5117ms
- GET /api/me 200 in 6359ms
- ✓ Compiled in 416ms (770 modules)
- GET /settings 200 in 2562ms
- ✓ Compiled /api/auth/register in 324ms (482 modules)
- POST /api/auth/register 201 in 6200ms
- ○ Compiling /api/assistant ...
- ✓ Compiled /api/assistant in 511ms (818 modules)
- GET /settings 200 in 4519ms
- POST /api/assistant 200 in 18150ms
- POST /api/assistant 200 in 9414ms
- GET /api/assistant 200 in 3149ms
- GET /api/assistant?sessionId=cmv3rrzsh00493mqgrs2gsdii 200 in 4096ms
- GET /assistant 307 in 219ms
-prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
- ✓ Compiled in 362ms (289 modules)
- ✓ Compiled in 241ms (289 modules)
- GET /settings 200 in 3679ms
- GET /settings 200 in 2943ms
- ✓ Compiled in 181ms (289 modules)
- GET /settings 200 in 2204ms
- ✓ Compiled in 246ms (289 modules)
- GET /settings 200 in 2215ms
- ✓ Compiled /api/me in 737ms (738 modules)
- ✓ Compiled in 0ms (481 modules)
- GET /settings 200 in 5084ms
- GET /api/me 200 in 6371ms
- ✓ Compiled / in 464ms (758 modules)
- GET / 307 in 858ms
- ✓ Compiled /api/auth/register in 429ms (487 modules)
- POST /api/auth/register 201 in 6298ms
- GET / 307 in 2316ms
- ✓ Compiled in 1221ms (738 modules)
- GET /settings 200 in 2684ms
- ✓ Compiled in 554ms (738 modules)
- GET /settings 200 in 2432ms
- ✓ Compiled in 471ms (738 modules)
- GET /settings 200 in 2301ms
- ✓ Compiled /api/auth/register in 130ms (482 modules)
- POST /api/auth/register 201 in 5921ms
- ○ Compiling /api/assistant ...
- ✓ Compiled /api/assistant in 771ms (818 modules)
- POST /api/assistant 200 in 8048ms
- POST /api/assistant 200 in 7179ms
- GET /api/assistant 200 in 3052ms
+ ✓ Ready in 12.4s
+ ○ Compiling /manifest.webmanifest ...
+ ✓ Compiled /manifest.webmanifest in 2.9s (316 modules)
+ GET /manifest.webmanifest 200 in 3608ms
+ ○ Compiling /api/notifications/subscribe ...
+ ✓ Compiled /api/notifications/subscribe in 976ms (343 modules)
+ POST /api/notifications/subscribe 401 in 1166ms
+ ✓ Compiled /api/auth/register in 231ms (348 modules)
+ POST /api/auth/register 201 in 7686ms
+ POST /api/notifications/subscribe 200 in 3376ms
+ POST /api/notifications/subscribe 200 in 3360ms
+ DELETE /api/notifications/subscribe 200 in 3563ms
+ DELETE /api/notifications/subscribe 200 in 3356ms
