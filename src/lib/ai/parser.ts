@@ -2,8 +2,76 @@ import { extractAmount } from "@/lib/money";
 import { resolveCategoryFromText } from "@/lib/categories";
 import type { ParsedIntent } from "./types";
 
-const EXPENSE_WORDS = ["expense", "spent", "spend", "paid", "bought", "purchase", "buy", "kharcha", "خرچ"];
-const INCOME_WORDS = ["income", "earned", "received", "rekha", "آمد", "deposit", "credited", "salary aya"];
+const EXPENSE_WORDS = [
+  "expense",
+  "spent",
+  "spend",
+  "spending",
+  "paid",
+  "pay",
+  "bought",
+  "buy",
+  "purchase",
+  "purchased",
+  "gave",
+  "give",
+  "given",
+  "gifted",
+  "donated",
+  "lent",
+  "lend",
+  "kharcha",
+  "kharch",
+  "خرچ",
+  "ادا",
+  "بهیجا",
+  "بھیجا",
+];
+
+const INCOME_WORDS = [
+  "income",
+  "earned",
+  "earn",
+  "earning",
+  "received",
+  "receive",
+  "receiving",
+  "got",
+  "gotten",
+  "credit",
+  "credited",
+  "deposit",
+  "deposited",
+  "salary",
+  "mila",
+  "milay",
+  "miley",
+  "mili",
+  "aya",
+  "aayi",
+  "aagaya",
+  "aa gaya",
+  "rekha",
+  "آمد",
+  "وصول",
+  "حاصل",
+  "آمدنی",
+];
+
+// Words that carry no meaning once we build a transaction description.
+const DESCRIPTION_STOPWORDS =
+  /\b(expense|spent|spend|spending|paid|pay|bought|buy|purchase|purchased|income|earned|earn|earning|received|receive|receiving|got|gotten|credit|credited|deposit|deposited|salary|gave|give|given|gifted|donated|lent|lend|add|added|record|recorded|log|logged|new|today|yesterday|tomorrow|for|from|to|on|in|into|at|by|of|the|a|an|i|me|my|actually|instead|mean|make|made|more|it|was|is|that|this|no|not|rather|correction|correct|change|changed|update|updated|same|also|too|as|well|one)\b/gi;
+
+function matchWord(lower: string, word: string): boolean {
+  if (/^[a-z0-9 ]+$/.test(word)) {
+    return new RegExp(`\\b${word.replace(/ /g, "\\s+")}\\b`, "i").test(lower);
+  }
+  return lower.includes(word);
+}
+
+export function hasAnyWord(lower: string, words: string[]): boolean {
+  return words.some((w) => matchWord(lower, w));
+}
 
 export function findAmount(text: string): number | undefined {
   const n = extractAmount(text);
@@ -46,8 +114,8 @@ export function parseIntent(raw: string): ParsedIntent {
     return { kind: "query_income", raw };
   }
 
-  const hasExpenseWord = EXPENSE_WORDS.some((w) => lower.includes(w));
-  const hasIncomeWord = INCOME_WORDS.some((w) => lower.includes(w));
+  const hasExpenseWord = hasAnyWord(lower, EXPENSE_WORDS);
+  const hasIncomeWord = hasAnyWord(lower, INCOME_WORDS);
   const amount = findAmount(text);
 
   if (hasIncomeWord && amount !== undefined) {
@@ -91,7 +159,7 @@ function parseExpenseLike(text: string, kind: "expense" | "income"): ParsedInten
   const withoutAmount = stripCurrency(text);
   const category = resolveCategoryFromText(withoutAmount, kind);
   const description = withoutAmount
-    .replace(/\b(expense|spent|spend|paid|bought|purchase|income|earned|received|deposit|add|record|log|new|today|yesterday|tomorrow|for|on|in|i|me|my)\b/gi, "")
+    .replace(DESCRIPTION_STOPWORDS, "")
     .replace(/[0-9.,]+/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -200,4 +268,112 @@ function parseTransfer(text: string): ParsedIntent {
     fromAccount: fromMatch?.[1]?.trim(),
     toAccount: toMatch?.[1]?.trim(),
   };
+}
+
+export interface ChatHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+  intent?: string;
+}
+
+// Phrases that signal the message is modifying the previous transaction
+// ("make it 600", "actually that was income", "no, from Ahmed instead").
+const REFERENTIAL =
+  /\b(actually|instead|i mean|make it|change (it )?to|rather|correction|correct it|not|no|same|also|too|as well|that one|the last one)\b/i;
+
+function lastTransactionMessage(history: ChatHistoryTurn[]): string | null {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const turn = history[i];
+    if (turn.role !== "user") continue;
+    if (turn.intent && /^create_(expense|income|transfer)$/.test(turn.intent)) {
+      return turn.content;
+    }
+    const parsed = parseIntent(turn.content);
+    if (
+      parsed.kind === "create_expense" ||
+      parsed.kind === "create_income" ||
+      parsed.kind === "create_transfer"
+    ) {
+      return turn.content;
+    }
+  }
+  return null;
+}
+
+export function isFollowUpMessage(message: string, history: ChatHistoryTurn[] = []): boolean {
+  if (!lastTransactionMessage(history)) return false;
+  const direct = parseIntent(message);
+  const lower = message.trim().toLowerCase();
+  const words = lower.split(/\s+/).filter(Boolean);
+  if (REFERENTIAL.test(lower)) return true;
+  return direct.kind === "unknown" && findAmount(message) === undefined && words.length <= 3;
+}
+
+function stripCorrectionTail(text: string): string {
+  return text.replace(/\s*\b(instead of|rather than|not)\b.*$/i, "").trim() || text;
+}
+
+function extractDescription(text: string, kind: "expense" | "income"): string {
+  const withoutAmount = stripCurrency(text);
+  const description = withoutAmount
+    .replace(DESCRIPTION_STOPWORDS, "")
+    .replace(/[0-9.,]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (description) return description;
+  return resolveCategoryFromText(withoutAmount, kind)?.name ?? "";
+}
+
+/**
+ * Context-aware parse. When the message is a follow-up or correction
+ * (e.g. "make it 600", "from Ahmed", "actually income"), its fields are
+ * merged onto the most recent transaction in the conversation so the user
+ * does not have to repeat everything.
+ */
+export function parseIntentWithContext(
+  message: string,
+  history: ChatHistoryTurn[] = [],
+): ParsedIntent {
+  const direct = parseIntent(message);
+  if (!isFollowUpMessage(message, history)) return direct;
+
+  const prevMessage = lastTransactionMessage(history);
+  if (!prevMessage) return direct;
+
+  const base = parseIntent(prevMessage);
+  if (
+    base.kind !== "create_expense" &&
+    base.kind !== "create_income" &&
+    base.kind !== "create_transfer"
+  ) {
+    return direct;
+  }
+
+  const lower = message.trim().toLowerCase();
+  const stripped = stripCorrectionTail(message);
+  const curAmount = findAmount(stripped);
+
+  if (base.kind === "create_transfer") {
+    return curAmount !== undefined ? { ...base, raw: message, amount: curAmount } : base;
+  }
+
+  const kind: "expense" | "income" = hasAnyWord(lower, INCOME_WORDS)
+    ? "income"
+    : hasAnyWord(lower, EXPENSE_WORDS)
+      ? "expense"
+      : base.kind === "create_income"
+        ? "income"
+        : "expense";
+
+  const curCategory = resolveCategoryFromText(stripCurrency(stripped), kind);
+  const curDescription = extractDescription(stripped, kind);
+
+  const amount = curAmount !== undefined ? curAmount : base.amount;
+  const categoryName = curCategory?.name ?? base.categoryName;
+  const description = curDescription || base.description;
+
+  if (kind === "income") {
+    return { kind: "create_income", raw: message, amount, categoryName, description, date: base.date };
+  }
+  return { kind: "create_expense", raw: message, amount, categoryName, description, date: base.date };
 }

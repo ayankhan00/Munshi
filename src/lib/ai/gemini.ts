@@ -23,16 +23,30 @@ export interface GeminiExtraction {
   period?: string;
 }
 
-export async function extractWithGemini(query: string): Promise<GeminiExtraction | null> {
-  const apiKey = env().geminiApiKey;
-  if (!apiKey) return null;
+export interface GeminiTurn {
+  role: "user" | "model";
+  text: string;
+}
 
-  const model = env().geminiModel;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+function buildSystemPrompt(currency: string): string {
+  return `You are Munshi, a personal finance assistant intent extractor.
+Read the conversation so far and the latest user message, then output the user's
+intent as ONLY valid JSON (no markdown, no prose).
 
-  const systemPrompt = `You are Munshi, a personal finance assistant intent extractor.
-Extract structured data from the user's message. Respond with ONLY valid JSON matching one of these shapes:
+Rules:
+- Money the user RECEIVES is income: got, received, earned, credited, deposit,
+  salary, "mila", "aya", "rekha", آمد. Example: "I got 20 from Abdullah" =>
+  {"kind":"create_income","amount":20,"description":"Abdullah"}.
+- Money the user SPENDS or PAYS OUT is expense: spent, paid, bought, purchased,
+  lent/gave to someone, kharcha, خرچ. Example: "gave my brother 500" =>
+  {"kind":"create_expense","amount":500,"description":"brother"}.
+- The user's currency is ${currency}. amount is a number in major units.
+- Use the conversation to resolve follow-ups and corrections. If the latest
+  message only changes part of the previous transaction (e.g. "make it 600",
+  "from Ahmed instead", "actually that was income"), return the FULL corrected
+  intent (all fields, not just the change).
 
+JSON shapes:
 For expense: {"kind":"create_expense","amount":500,"categoryName":"Food","description":"lunch","date":"today"}
 For income: {"kind":"create_income","amount":150000,"categoryName":"Salary","description":"salary","date":"today"}
 For transfer: {"kind":"create_transfer","amount":1000,"fromAccount":"Cash","toAccount":"Bank"}
@@ -44,17 +58,34 @@ For reminder: {"kind":"create_reminder","title":"call mom","remind":"6pm"}
 For help: {"kind":"help"}
 Anything else: {"kind":"unknown"}
 
-amount is a number in major units. Date/due/remind use plain English like "today", "tomorrow", "6pm", "next monday".`;
+Date/due/remind use plain English like "today", "tomorrow", "6pm", "next monday".`;
+}
+
+export async function extractWithGemini(
+  query: string,
+  history: GeminiTurn[] = [],
+  opts: { currency?: string } = {},
+): Promise<GeminiExtraction | null> {
+  const apiKey = env().geminiApiKey;
+  if (!apiKey) return null;
+
+  const model = env().geminiModel;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const cleanHistory = history
+    .filter((t) => t.text && t.text.trim().length > 0)
+    .slice(-4);
+  const firstUser = cleanHistory.findIndex((t) => t.role === "user");
+  const turns = firstUser === -1 ? [] : cleanHistory.slice(firstUser);
+
+  const contents = [
+    ...turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+    { role: "user", parts: [{ text: query }] },
+  ];
 
   const payload = {
-    contents: [
-      {
-        parts: [
-          { text: systemPrompt },
-          { text: `User message: ${query}` },
-        ],
-      },
-    ],
+    systemInstruction: { parts: [{ text: buildSystemPrompt(opts.currency ?? "PKR") }] },
+    contents,
     generationConfig: { temperature: 0.1, maxOutputTokens: 300 },
   };
 

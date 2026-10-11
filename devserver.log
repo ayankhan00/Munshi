@@ -17,3 +17,32 @@
  POST /api/notifications/subscribe 200 in 3360ms
  DELETE /api/notifications/subscribe 200 in 3563ms
  DELETE /api/notifications/subscribe 200 in 3356ms
+ POST /api/auth/register 201 in 6762ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 1223ms (677 modules)
+ POST /api/assistant 200 in 16019ms
+ POST /api/assistant 200 in 14023ms
+ POST /api/assistant 200 in 14021ms
+ ✓ Compiled in 31ms
+ ✓ Compiled /api/auth/register in 131ms (137 modules)
+ POST /api/auth/register 201 in 7070ms
+ ✓ Compiled /api/assistant in 174ms (482 modules)
+ POST /api/assistant 200 in 14368ms
+ POST /api/assistant 200 in 14140ms
+ POST /api/assistant 200 in 14152ms
+ ✓ Compiled in 23ms
+ ✓ Compiled /api/auth/register in 159ms (137 modules)
+ POST /api/auth/register 201 in 6744ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 534ms (482 modules)
+ POST /api/assistant 200 in 14061ms
+ POST /api/assistant 200 in 12224ms
+ POST /api/assistant 200 in 12386ms
+ ✓ Compiled in 25ms
+ ✓ Compiled /api/auth/register in 148ms (137 modules)
+ POST /api/auth/register 201 in 6745ms
+ ✓ Compiled /api/assistant in 227ms (482 modules)
+ POST /api/assistant 200 in 14405ms
+ POST /api/assistant 200 in 12563ms
+ POST /api/assistant 200 in 12394ms
+ ✓ Compiled in 22ms

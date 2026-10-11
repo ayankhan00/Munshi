@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { parseIntent } from "./parser";
+import { parseIntentWithContext, isFollowUpMessage, type ChatHistoryTurn } from "./parser";
 import { extractWithGemini, type GeminiExtraction } from "./gemini";
 import { executeIntent, type ExecutorContext, type ExecutorResult } from "./executor";
 import type { ParsedIntent } from "./types";
@@ -9,6 +9,7 @@ export interface AssistantContext extends ExecutorContext {
   userId: string;
   timezone: string;
   currency: string;
+  history?: ChatHistoryTurn[];
 }
 
 export interface AssistantResult {
@@ -64,14 +65,20 @@ function toIntent(extraction: GeminiExtraction, raw: string): ParsedIntent {
 
 export async function runAssistant(message: string, ctx: AssistantContext): Promise<AssistantResult> {
   let usedGemini = false;
-  let intent: ParsedIntent = parseIntent(message);
+  const history = ctx.history ?? [];
+  const followUp = isFollowUpMessage(message, history);
+  let intent: ParsedIntent = parseIntentWithContext(message, history);
 
-  const extraction = await extractWithGemini(message);
-  if (extraction) {
-    usedGemini = true;
-    const geminiIntent = toIntent(extraction, message);
-    if (geminiIntent.kind !== "unknown" || intent.kind === "unknown") {
-      intent = geminiIntent;
+  // Only the current message is ever sent to the model. Follow-ups and
+  // corrections are resolved locally from the previous turn's stored intent.
+  if (!followUp) {
+    const extraction = await extractWithGemini(message, [], { currency: ctx.currency });
+    if (extraction) {
+      usedGemini = true;
+      const geminiIntent = toIntent(extraction, message);
+      if (geminiIntent.kind !== "unknown" || intent.kind === "unknown") {
+        intent = geminiIntent;
+      }
     }
   }
 

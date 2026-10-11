@@ -87,8 +87,9 @@ async function executeExpense(
 
   const tx = result.transaction as { type: string; amountMinor: number; description?: string | null };
   const label = type === "expense" ? "expense" : "income";
+  const preposition = type === "expense" ? "for" : "from";
   return {
-    reply: `Done! Recorded ${label} of ${formatMoney(tx.amountMinor, ctx.currency)}${tx.description ? ` for ${tx.description}` : ""}.`,
+    reply: `Done! Recorded ${label} of ${formatMoney(tx.amountMinor, ctx.currency)}${tx.description ? ` ${preposition} ${tx.description}` : ""}.`,
     intent: intent.kind,
     action: "transaction",
     data: result,

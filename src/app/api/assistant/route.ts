@@ -22,11 +22,25 @@ export async function POST(request: NextRequest) {
       sessionId = session.id;
     }
 
+    // Load the previous turn (last user message + its reply) for local,
+    // app-side context only — it is never sent to the model.
+    const recent = await prisma.aiMessage.findMany({
+      where: { userId: user.id, sessionId },
+      orderBy: { createdAt: "desc" },
+      take: 2,
+    });
+    const history = recent.reverse().map((m) => ({
+      role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+      content: m.content,
+      intent: m.intent ?? undefined,
+    }));
+
     const result = await runAssistant(parsed.message, {
       userId: user.id,
       timezone: user.timezone,
       currency: user.currency,
       sessionId,
+      history,
     });
 
     await prisma.aiMessage.create({
