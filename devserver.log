@@ -46,3 +46,92 @@
  POST /api/assistant 200 in 12563ms
  POST /api/assistant 200 in 12394ms
  ✓ Compiled in 22ms
+ ✓ Compiled in 101ms (195 modules)
+ ✓ Compiled in 62ms (195 modules)
+ ✓ Compiled in 57ms (195 modules)
+ ✓ Compiled in 97ms (195 modules)
+ ✓ Compiled in 54ms (195 modules)
+ ✓ Compiled in 60ms (195 modules)
+ ○ Compiling /api/recurring ...
+ ✓ Compiled /api/recurring in 578ms (665 modules)
+ GET /api/recurring 401 in 715ms
+ ✓ Compiled /api/cron/run in 160ms (671 modules)
+ GET /api/cron/run 401 in 271ms
+ ○ Compiling /recurring ...
+(node:4152) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Compiled /recurring in 6.4s (1132 modules)
+ GET /recurring 307 in 6882ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1382ms (1127 modules)
+ GET /login 200 in 1710ms
+ ✓ Compiled /forgot-password in 399ms (1134 modules)
+ GET /forgot-password 200 in 606ms
+ ✓ Compiled /_not-found in 291ms (1135 modules)
+ GET /nonexistent-xyz 404 in 494ms
+ ✓ Compiled /api/auth/register in 418ms (860 modules)
+ POST /api/auth/register 201 in 7242ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1144ms (1149 modules)
+ GET /settings 200 in 5403ms
+ ✓ Compiled /manifest.webmanifest in 290ms (872 modules)
+ GET /manifest.webmanifest 200 in 431ms
+ ✓ Compiled /api/me in 384ms (1155 modules)
+ GET /api/categories 200 in 7383ms
+ GET /api/me 200 in 6172ms
+ POST /api/recurring 200 in 6277ms
+ GET /api/recurring 200 in 3074ms
+ PATCH /api/recurring 200 in 3969ms
+ PATCH /api/recurring 200 in 3981ms
+ POST /api/cron/run 401 in 29ms
+ ✓ Compiled /api/transactions in 490ms (1150 modules)
+ GET /api/transactions?pageSize=10 200 in 4789ms
+ GET /api/recurring 200 in 3074ms
+ DELETE /api/me 200 in 3111ms
+ ✓ Compiled in 710ms (1152 modules)
+ GET /settings 200 in 2519ms
+ GET /manifest.webmanifest 200 in 21ms
+ POST /api/auth/register 201 in 5489ms
+ GET /api/categories 200 in 4162ms
+ POST /api/recurring 200 in 3077ms
+ GET /api/recurring 200 in 3067ms
+ PATCH /api/recurring 200 in 3979ms
+ PATCH /api/recurring 200 in 3962ms
+ POST /api/cron/run 200 in 10980ms
+ GET /api/transactions?pageSize=10 200 in 4684ms
+ GET /api/recurring 200 in 3246ms
+ DELETE /api/me 200 in 3084ms
+ PUT /api/me 200 in 3252ms
+ ○ Compiling /assistant ...
+ ✓ Compiled /api/auth/register in 1190ms (1149 modules)
+ GET /assistant 200 in 1427ms
+ ✓ Compiled /manifest.webmanifest in 177ms (862 modules)
+ GET /manifest.webmanifest 200 in 305ms
+ ✓ Compiled /api/assistant in 321ms (873 modules)
+ PUT /api/me 200 in 7747ms
+ PUT /api/me 200 in 13205ms
+ PUT /api/me 200 in 15703ms
+ GET /assistant 200 in 13759ms
+ GET /manifest.webmanifest 200 in 18ms
+ PUT /api/me 200 in 17888ms
+ GET /api/assistant 200 in 20197ms
+ PUT /api/me 200 in 21688ms
+ PUT /api/me 200 in 21161ms
+ PUT /api/me 200 in 21178ms
+ PUT /api/me 200 in 21177ms
+ PUT /api/me 200 in 21174ms
+ POST /api/auth/register 201 in 40187ms
+ ✓ Compiled /api/auth/reset in 312ms (1163 modules)
+ PUT /api/me 200 in 20099ms
+ GET /api/assistant 200 in 17410ms
+ POST /api/auth/reset 200 in 5359ms
+ ✓ Compiled /api/auth/reset/confirm in 355ms (1165 modules)
+ GET /api/assistant?sessionId=cmv3rb0fk001n3mqggcr6z6g0 200 in 15267ms
+ POST /api/auth/reset/confirm 400 in 1781ms
+ POST /api/auth/reset/confirm 200 in 4706ms
+ POST /api/auth/reset/confirm 400 in 1774ms
+ ✓ Compiled /api/auth/login in 313ms (1167 modules)
+ GET /api/assistant?sessionId=cmv3rb0fk001n3mqggcr6z6g0 200 in 8318ms
+ POST /api/auth/login 401 in 2020ms
+ POST /api/auth/login 200 in 1876ms
+ DELETE /api/me 200 in 3093ms

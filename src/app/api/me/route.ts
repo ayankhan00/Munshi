@@ -2,7 +2,8 @@ import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser } from "@/lib/api";
 import { settingsSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
-import { jsonError } from "@/lib/http";
+import { jsonError, jsonOk } from "@/lib/http";
+import { env } from "@/lib/env";
 
 export async function GET(_request: NextRequest) {
   return unwrapAsync(async () => {
@@ -45,5 +46,21 @@ export async function PUT(request: NextRequest) {
       data: parsed.data,
     });
     return updated;
+  });
+}
+
+export async function DELETE(_request: NextRequest) {
+  return unwrapAsync(async () => {
+    const user = await requireApiUser();
+    await prisma.user.delete({ where: { id: user.id } });
+    const res = jsonOk({ deleted: true });
+    res.cookies.set(env().sessionCookieName, "", {
+      path: "/",
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    return res;
   });
 }

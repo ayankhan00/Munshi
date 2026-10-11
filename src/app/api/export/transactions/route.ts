@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
-    const mk = currentMonthKey(user.timezone);
+    const monthParam = searchParams.get("month");
+    const mk =
+      monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+        ? monthParam
+        : currentMonthKey(user.timezone);
     const range = monthRange(mk, user.timezone, user.financialMonthStartDay);
     const start = from ? new Date(`${from}T00:00:00Z`) : range.start;
     const end = to ? new Date(`${to}T23:59:59Z`) : range.endExclusive;

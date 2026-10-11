@@ -56,6 +56,7 @@ export default function SettingsPage() {
     salaryDay: 1,
     openingBalanceMinor: "",
     savingsGoalMinor: "",
+    financialMonthStartDay: 1,
     notificationsEnabled: true,
   });
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
@@ -80,6 +81,7 @@ export default function SettingsPage() {
             ? String(data.openingBalanceMinor / 100)
             : "",
           savingsGoalMinor: data.savingsGoalMinor ? String(data.savingsGoalMinor / 100) : "",
+          financialMonthStartDay: data.financialMonthStartDay,
           notificationsEnabled: data.notificationsEnabled,
         });
       } catch (err) {
@@ -147,6 +149,7 @@ export default function SettingsPage() {
           savingsGoalMinor: form.savingsGoalMinor
             ? Math.round(parseFloat(form.savingsGoalMinor) * 100)
             : 0,
+          financialMonthStartDay: form.financialMonthStartDay,
           notificationsEnabled: form.notificationsEnabled,
         }),
       });
@@ -179,6 +182,21 @@ export default function SettingsPage() {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/login");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm("Delete your account and all data? This cannot be undone.")) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await api("/api/me", { method: "DELETE" });
+      router.push("/login");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -261,6 +279,19 @@ export default function SettingsPage() {
                 max={28}
                 value={form.salaryDay}
                 onChange={(e) => setForm({ ...form, salaryDay: Number(e.target.value) })}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-monthstart">Month starts on</Label>
+              <Input
+                id="s-monthstart"
+                type="number"
+                min={1}
+                max={28}
+                value={form.financialMonthStartDay}
+                onChange={(e) =>
+                  setForm({ ...form, financialMonthStartDay: Number(e.target.value) })
+                }
               />
             </FieldGroup>
             <FieldGroup>
@@ -382,6 +413,21 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Danger zone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Deleting your account permanently removes all transactions, tasks, reminders
+            and settings. This cannot be undone.
+          </p>
+          <Button variant="danger" onClick={handleDeleteAccount} disabled={saving}>
+            Delete account
+          </Button>
         </CardContent>
       </Card>
 

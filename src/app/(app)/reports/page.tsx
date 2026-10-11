@@ -13,8 +13,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Download } from "lucide-react";
 import { api, formatMoney } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -106,6 +108,13 @@ export default function ReportsPage() {
             </option>
           ))}
         </Select>
+        <a
+          href={`/api/export/transactions?month=${month}`}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </a>
       </PageHeader>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

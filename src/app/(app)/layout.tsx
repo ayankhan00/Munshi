@@ -9,5 +9,9 @@ export default async function AppLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  return <AppShell user={{ name: user.name, email: user.email }}>{children}</AppShell>;
+  return (
+    <AppShell user={{ name: user.name, email: user.email, theme: user.theme }}>
+      {children}
+    </AppShell>
+  );
 }

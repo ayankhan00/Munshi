@@ -180,6 +180,7 @@ export async function createTransaction(userId: string, input: TxInput) {
         notes: input.notes?.trim() || undefined,
         paymentMethod: input.paymentMethod?.trim() || undefined,
         idempotencyKey: input.idempotencyKey,
+        recurringRuleId: input.recurringRuleId,
         adjustmentReason: input.type === "adjustment" ? input.reason : undefined,
       },
     });

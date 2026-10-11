@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { processDueReminders } from "@/lib/services/reminders";
+import { runDueRecurringRules } from "@/lib/services/recurring";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ async function run(request: NextRequest) {
   if (!secret || provided !== secret) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
-  const result = await processDueReminders();
-  return NextResponse.json({ ok: true, data: result });
+  const reminders = await processDueReminders();
+  const recurring = await runDueRecurringRules();
+  return NextResponse.json({ ok: true, data: { reminders, recurring } });
 }

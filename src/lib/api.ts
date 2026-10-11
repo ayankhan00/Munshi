@@ -16,10 +16,10 @@ export class NotFoundError extends ApiError {
   }
 }
 
-export async function unwrapAsync<T>(fn: () => Promise<NextResponse | T>): Promise<NextResponse> {
+export async function unwrapAsync<T>(fn: () => Promise<Response | T>): Promise<Response> {
   try {
     const result = await fn();
-    if (result instanceof NextResponse) return result;
+    if (result instanceof Response) return result;
     return NextResponse.json({ ok: true, data: result });
   } catch (err) {
     if (err instanceof ApiError) return jsonError(err.message, err.status);

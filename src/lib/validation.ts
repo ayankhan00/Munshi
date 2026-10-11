@@ -169,6 +169,28 @@ export const accountCreateSchema = z.object({
   isDefault: z.boolean().optional().default(false),
 });
 
+export const recurringFrequencies = ["daily", "weekly", "monthly", "yearly"] as const;
+
+export const recurringCreateSchema = z
+  .object({
+    type: z.enum(["income", "expense", "transfer"]).default("expense"),
+    amount: z.number().finite().positive(),
+    description: z.string().trim().max(200).optional().default(""),
+    categoryId: z.string().cuid().optional(),
+    accountId: z.string().cuid().optional(),
+    transferAccountId: z.string().cuid().optional(),
+    frequency: z.enum(recurringFrequencies),
+    interval: z.number().int().min(1).max(60).optional().default(1),
+    startDate: z.string().optional(),
+    nextRunAt: z.string().datetime().optional(),
+  })
+  .strict();
+
+export const recurringUpdateSchema = recurringCreateSchema
+  .partial()
+  .extend({ id: z.string().cuid(), active: z.boolean().optional() })
+  .strict();
+
 export const aiMessageSchema = z.object({
   message: z.string().trim().min(1).max(4000),
   sessionId: z.string().cuid().optional(),

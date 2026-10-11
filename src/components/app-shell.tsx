@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  Repeat,
   PiggyBank,
   ListTodo,
   BellRing,
@@ -20,11 +21,13 @@ import {
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { href: "/assistant", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/recurring", label: "Recurring", icon: Repeat },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Reminders", icon: BellRing },
@@ -35,6 +38,7 @@ const NAV = [
 interface Me {
   email: string;
   name?: string | null;
+  theme?: string;
 }
 
 export default function AppShell({
@@ -93,6 +97,10 @@ export default function AppShell({
 
   const footer = (
     <div className="border-t border-border p-3">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <span className="text-xs text-muted-foreground">Theme</span>
+        <ThemeToggle initial={me?.theme} />
+      </div>
       <div className="mb-2 truncate px-2 text-xs text-muted-foreground">
         {me?.name || me?.email || "…"}
       </div>
