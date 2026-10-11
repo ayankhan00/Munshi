@@ -123,6 +123,26 @@ describe("extractAmount", () => {
   it("parses english number words", () => {
     expect(extractAmount("two thousand rupees")).toBe(2000);
   });
+
+  it("reconstructs a spoken compound number split by STT ('500 73' -> 573)", () => {
+    expect(extractAmount("I took a taxi for 500 73")).toBe(573);
+  });
+
+  it("reconstructs a compound number joined with 'and'", () => {
+    expect(extractAmount("I took a taxi for 500 and 73")).toBe(573);
+  });
+
+  it("parses a full english number-word phrase", () => {
+    expect(extractAmount("five hundred and seventy three")).toBe(573);
+  });
+
+  it("does not merge colon-separated times into one amount", () => {
+    expect(extractAmount("I took a taxi for 11:21")).toBe(11);
+  });
+
+  it("sums spoken scale compounds (two thousand five hundred -> 2500)", () => {
+    expect(extractAmount("two thousand five hundred")).toBe(2500);
+  });
 });
 
 describe("money", () => {

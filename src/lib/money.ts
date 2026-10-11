@@ -150,18 +150,78 @@ export function parseUrduNumberWords(text: string): number | null {
   return found ? total : null;
 }
 
+const AMOUNT_TOKEN_RE = /(\d[\d,]*(?:\.\d+)?)|([a-z]+)/gi;
+
+interface AmountToken {
+  type: "add" | "hundred" | "scale";
+  value: number;
+  start: number;
+  end: number;
+}
+
+export interface AmountInfo {
+  value: number | null;
+  compound: boolean;
+}
+
+function evaluateAmountTokens(tokens: AmountToken[]): number {
+  let total = 0;
+  let current = 0;
+  for (const token of tokens) {
+    if (token.type === "add") {
+      current += token.value;
+    } else if (token.type === "hundred") {
+      current = (current || 1) * 100;
+    } else {
+      total += (current || 1) * token.value;
+      current = 0;
+    }
+  }
+  return total + current;
+}
+
+// Speech-to-text commonly splits a spoken quantity into separate tokens
+// ("five hundred and seventy three" -> "500 73"). Adjacent number tokens that
+// are joined only by whitespace or "and" are additive spoken-number parts
+// (500 + 73 = 573), not a concatenation. Tokens separated by any other word or
+// punctuation start a new amount, so only the first quantity is used.
+export function extractAmountInfo(text: string): AmountInfo {
+  const tokens: AmountToken[] = [];
+  let started = false;
+  let lastEnd = 0;
+
+  for (const match of text.matchAll(AMOUNT_TOKEN_RE)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+
+    let token: AmountToken | null = null;
+    if (match[1] !== undefined) {
+      const value = parseFloat(match[1].replace(/,/g, ""));
+      if (Number.isFinite(value)) token = { type: "add", value, start, end };
+    } else {
+      const word = (match[2] ?? "").toLowerCase();
+      if (word === "hundred") token = { type: "hundred", value: 100, start, end };
+      else if (word in SCALES) token = { type: "scale", value: SCALES[word], start, end };
+      else if (word in ONES) token = { type: "add", value: ONES[word], start, end };
+      else if (word in TENS) token = { type: "add", value: TENS[word], start, end };
+    }
+
+    if (!token) {
+      if (started && (match[2] ?? "").toLowerCase() !== "and") break;
+      continue;
+    }
+
+    if (started && !/^\s*(?:and\s*)?$/i.test(text.slice(lastEnd, start))) break;
+
+    started = true;
+    lastEnd = end;
+    tokens.push(token);
+  }
+
+  if (tokens.length === 0) return { value: null, compound: false };
+  return { value: evaluateAmountTokens(tokens), compound: tokens.length >= 2 };
+}
+
 export function extractAmount(text: string): number | null {
-  const match = text.match(/(?:rs\.?|rupees?|pkr|₹|৳)?\s*([0-9][0-9,\.\s]*)/i);
-  if (match) {
-    const numeric = parseFloat(match[1].replace(/[,\s]/g, ""));
-    if (Number.isFinite(numeric)) return numeric;
-  }
-  const words = text.match(
-    /([a-z]+(?: (?:and )?[a-z]+){0,6})\s*(?:rupees?|rs\.?)|\b(a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|lakh|crore)\b/i,
-  );
-  if (words) {
-    const parsed = parseEnglishNumberWords(words[0]);
-    if (parsed !== null) return parsed;
-  }
-  return null;
+  return extractAmountInfo(text).value;
 }

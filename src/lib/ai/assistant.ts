@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { extractAmountInfo, type AmountInfo } from "@/lib/money";
 import { parseIntentWithContext, isFollowUpMessage, type ChatHistoryTurn } from "./parser";
 import { extractWithGemini, type GeminiExtraction } from "./gemini";
 import { executeIntent, type ExecutorContext, type ExecutorResult } from "./executor";
@@ -33,6 +34,26 @@ const ALLOWED_KINDS = new Set([
   "help",
   "unknown",
 ]);
+
+// The model must never be the source of truth for an amount. When the message
+// contains a spoken compound number (e.g. "500 73" from "five hundred and
+// seventy three"), the deterministic parser's summed value wins over the model.
+function preferDeterministicAmount(
+  geminiIntent: ParsedIntent,
+  amount: AmountInfo,
+): ParsedIntent {
+  if (!amount.compound || typeof amount.value !== "number") {
+    return geminiIntent;
+  }
+  switch (geminiIntent.kind) {
+    case "create_expense":
+    case "create_income":
+    case "create_transfer":
+      return { ...geminiIntent, amount: amount.value };
+    default:
+      return geminiIntent;
+  }
+}
 
 function toIntent(extraction: GeminiExtraction, raw: string): ParsedIntent {
   const base = { raw };
@@ -77,7 +98,7 @@ export async function runAssistant(message: string, ctx: AssistantContext): Prom
       usedGemini = true;
       const geminiIntent = toIntent(extraction, message);
       if (geminiIntent.kind !== "unknown" || intent.kind === "unknown") {
-        intent = geminiIntent;
+        intent = preferDeterministicAmount(geminiIntent, extractAmountInfo(message));
       }
     }
   }
