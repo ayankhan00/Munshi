@@ -1,6 +1,6 @@
 ﻿# Munshi
 
-Munshi (Urdu for "assistant") is a personal AI finance, tasks & reminder assistant. Track salary, expenses, budgets, savings, tasks, and reminders using natural text or voice commands.
+Munshi (Urdu for "assistant") is a personal AI finance, tasks & reminder assistant. Track salary, expenses, budgets, savings, tasks, and reminders using natural text or voice commands. 
 
 ## Stack
 - Next.js 15 (App Router) + React 19 + TypeScript
