@@ -8,18 +8,21 @@ export class ClientError extends Error {
   }
 }
 
+export type ApiOptions = RequestInit & { skipAuthRedirect?: boolean };
+
 export async function api<T = unknown>(
   path: string,
-  init?: RequestInit,
+  init?: ApiOptions,
 ): Promise<T> {
+  const { skipAuthRedirect, ...requestInit } = init ?? {};
   const res = await fetch(path, {
-    ...init,
+    ...requestInit,
     headers: {
       "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
+      ...(requestInit.headers ?? {}),
     },
   });
-  if (res.status === 401) {
+  if (res.status === 401 && !skipAuthRedirect) {
     window.location.href = "/login";
     throw new ClientError(401, "You must be signed in.");
   }

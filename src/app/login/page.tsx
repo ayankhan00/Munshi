@@ -35,6 +35,7 @@ export default function LoginPage() {
       await api("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
+        skipAuthRedirect: true,
       });
       router.push("/dashboard");
     } catch (err) {
