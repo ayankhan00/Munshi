@@ -5,7 +5,7 @@ export function env(): Record<string, string> {
     sessionSecret: v.SESSION_SECRET ?? "",
     sessionCookieName: v.SESSION_COOKIE_NAME ?? "pa_session",
     geminiApiKey: v.GEMINI_API_KEY ?? "",
-    geminiModel: v.GEMINI_MODEL ?? "gemini-1.5-flash",
+    geminiModel: v.GEMINI_MODEL ?? "gemini-flash-lite-latest",
     cronSecret: v.CRON_SECRET ?? "",
     vapidPublicKey: v.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
     vapidPrivateKey: v.VAPID_PRIVATE_KEY ?? "",

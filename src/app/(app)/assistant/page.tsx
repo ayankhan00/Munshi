@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, Send, Sparkles, User as UserIcon } from "lucide-react";
+import { Bot, Mic, MicOff, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +31,20 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [usingGemini, setUsingGemini] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    setVoiceSupported(
+      Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition),
+    );
+  }, []);
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -77,11 +86,54 @@ export default function AssistantPage() {
     send(input);
   }
 
+  function toggleListening() {
+    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      setListening(false);
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onresult = (event) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result[0]?.transcript ?? "";
+        if (result.isFinal) final += transcript;
+        else interim += transcript;
+      }
+      if (interim) setInput(interim);
+      if (final) {
+        setInput(final);
+        void send(final);
+      }
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col space-y-4">
       <PageHeader
         title="AI Assistant"
-        description="Ask in plain English (or Urdu) to log money, check balances, create tasks and set reminders."
+        description="Ask in plain English (or Urdu) to log money, check balances, create tasks and set reminders. Tap the mic and speak, e.g. 2750 on burgers."
       >
         {sessionId && messages.length > 0 ? (
           <Badge tone={usingGemini ? "success" : "muted"}>
@@ -169,9 +221,26 @@ export default function AssistantPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={listening ? "Listening..." : "Type a message..."}
             className="flex-1"
           />
+          {voiceSupported ? (
+            <Button
+              type="button"
+              variant={listening ? "danger" : "outline"}
+              size="icon"
+              onClick={toggleListening}
+              disabled={loading}
+              aria-label={listening ? "Stop voice input" : "Start voice input"}
+              title={listening ? "Stop listening" : "Speak your transaction"}
+            >
+              {listening ? (
+                <MicOff className="h-4 w-4 animate-pulse" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+          ) : null}
           <Button type="submit" disabled={loading || !input.trim()}>
             <Send className="h-4 w-4" />
             <span className="hidden sm:inline">Send</span>

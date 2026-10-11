@@ -4,15 +4,49 @@
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 2.1s
- ○ Compiling / ...
-(node:22476) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled / in 3.3s (568 modules)
- GET / 307 in 3723ms
+ ✓ Ready in 9.5s
+ ○ Compiling /api/auth/register ...
+ ✓ Compiled /api/auth/register in 2.9s (332 modules)
+ POST /api/auth/register 201 in 10306ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 913ms (677 modules)
+ POST /api/assistant 200 in 16115ms
+ POST /api/assistant 200 in 13166ms
  ○ Compiling /login ...
- ✓ Compiled /login in 1486ms (672 modules)
- GET /login 200 in 1744ms
- ✓ Compiled /dashboard in 324ms (712 modules)
- GET /dashboard 307 in 611ms
- GET /login 200 in 57ms
+(node:10024) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Compiled /login in 3.7s (649 modules)
+ GET /login 200 in 4059ms
+ ✓ Compiled /assistant in 447ms (708 modules)
+ GET /assistant 307 in 742ms
+ GET /assistant 200 in 48ms
+ GET /assistant 200 in 2474ms
+ ✓ Compiled /api/assistant in 216ms (797 modules)
+ POST /api/assistant 200 in 13731ms
+ POST /api/assistant 200 in 13113ms
+ POST /api/assistant 200 in 14017ms
+ POST /api/assistant 200 in 15967ms
+ POST /api/assistant 200 in 14833ms
+ POST /api/assistant 200 in 15265ms
+ ✓ Compiled /transactions in 475ms (1077 modules)
+ GET /transactions 200 in 634ms
+ ○ Compiling /api/transactions ...
+ ✓ Compiled /api/transactions in 621ms (1083 modules)
+ GET /api/transactions?pageSize=50&type=all 200 in 11765ms
+ GET /api/categories 200 in 16125ms
+ GET /api/accounts 200 in 17290ms
+ GET /api/transactions?pageSize=50&type=all 200 in 12028ms
+ GET /api/categories 200 in 12620ms
+ GET /api/accounts 200 in 13406ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 888ms (734 modules)
+ GET /settings 200 in 1268ms
+ ✓ Compiled in 367ms (287 modules)
+ GET /settings 200 in 30ms
+ GET /settings 200 in 4051ms
+ GET /settings 200 in 4936ms
+ ✓ Compiled /api/me in 244ms (752 modules)
+ GET /api/me 200 in 3785ms
+ GET /api/me 200 in 3366ms
+ ✓ Compiled /api/me/password in 339ms (755 modules)
+ POST /api/me/password 200 in 5110ms
