@@ -1,12 +1,8 @@
 import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser } from "@/lib/api";
-import { prisma } from "@/lib/db";
-import { jsonError } from "@/lib/http";
-import { env } from "@/lib/env";
-import { categoryBreakdown, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses, recentDailyExpense } from "@/lib/services/reports";
+import { categoryBreakdown, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses, recentDailyExpense, expenseTrend } from "@/lib/services/reports";
 import { getCurrentBalance } from "@/lib/services/transactions";
 import { currentMonthKey } from "@/lib/dates";
-import { formatInTimeZone } from "date-fns-tz";
 
 export async function GET(request: NextRequest) {
   return unwrapAsync(async () => {
@@ -33,6 +29,10 @@ export async function GET(request: NextRequest) {
     if (kind === "recurring") {
       const months = Number(searchParams.get("months") ?? 3);
       return recurringExpenses(user.id, months);
+    }
+    if (kind === "trend") {
+      const days = Number(searchParams.get("days") ?? 7);
+      return expenseTrend(user.id, user.timezone, Number.isFinite(days) ? days : 7);
     }
 
     const [balance, breakdown, series, dailyExpense] = await Promise.all([

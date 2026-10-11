@@ -135,3 +135,53 @@
  POST /api/auth/login 401 in 2020ms
  POST /api/auth/login 200 in 1876ms
  DELETE /api/me 200 in 3093ms
+ ○ Compiling /reports ...
+ ✓ Compiled /reports in 4.7s (1844 modules)
+ GET /reports 200 in 4991ms
+ ○ Compiling /api/reports ...
+ ✓ Compiled /api/reports in 1353ms (1046 modules)
+ ✓ Compiled in 610ms (817 modules)
+ GET /manifest.webmanifest 200 in 2293ms
+ GET /api/reports?month=2026-10 200 in 10565ms
+ ✓ Compiled /_not-found in 367ms (1377 modules)
+ ⨯ [Error [InvariantError]: Invariant: Expected clientReferenceManifest to be defined. This is a bug in Next.js.]
+ ⨯ [Error [InvariantError]: Invariant: Expected clientReferenceManifest to be defined. This is a bug in Next.js.]
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.6s (2551 modules)
+ GET /api/reports?month=2026-10 500 in 7432ms
+ ✓ Compiled in 1031ms (2114 modules)
+ ✓ Compiled in 288ms (983 modules)
+ ✓ Compiled in 256ms (983 modules)
+ ✓ Compiled in 329ms (983 modules)
+ ✓ Compiled in 303ms (983 modules)
+ ✓ Compiled in 1466ms (2114 modules)
+ ✓ Compiled /api/auth/register in 309ms (1162 modules)
+ POST /api/auth/register 201 in 6863ms
+ ✓ Compiled /api/categories in 229ms (1489 modules)
+ GET /api/categories 200 in 4119ms
+ ✓ Compiled /api/transactions in 325ms (1491 modules)
+ POST /api/transactions 200 in 9507ms
+ ✓ Compiled /_not-found in 275ms (1492 modules)
+ POST /api/transactions 404 in 571ms
+ POST /api/transactions 200 in 8948ms
+ POST /api/transactions 200 in 9093ms
+ POST /api/transactions 200 in 8923ms
+ POST /api/transactions 200 in 9074ms
+ ✓ Compiled /api/reports in 385ms (1495 modules)
+ GET /api/reports?month=2026-10 200 in 7325ms
+ GET /api/reports?kind=trend&days=7 200 in 2922ms
+ GET /api/reports?kind=trend&days=14 200 in 2916ms
+ GET /api/reports?kind=trend&days=30 200 in 2927ms
+ GET /api/reports?kind=trend&days=60 200 in 2923ms
+ GET /api/reports?kind=trend&days=90 200 in 2942ms
+ ✓ Compiled /api/me in 302ms (1492 modules)
+ DELETE /api/me 200 in 3468ms
+ ✓ Compiled /api/auth/register in 234ms (1492 modules)
+ POST /api/auth/register 201 in 5724ms
+ ✓ Compiled /api/categories in 301ms (1491 modules)
+ GET /api/categories 200 in 4262ms
+ ✓ Compiled /api/transactions in 205ms (1493 modules)
+ POST /api/transactions 200 in 9365ms
+ DELETE /api/me 200 in 2934ms
+ ✓ Compiled in 594ms (983 modules)
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }

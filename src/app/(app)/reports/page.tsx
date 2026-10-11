@@ -21,12 +21,25 @@ import { Select } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/utils";
 
 interface CategorySlice {
   name: string;
   color: string;
   minor: number;
   percent: number;
+}
+
+interface TrendPoint {
+  date: string;
+  label: string;
+  minor: number;
+}
+
+interface Trend {
+  days: number;
+  granularity: "day" | "week";
+  points: TrendPoint[];
 }
 
 interface ReportOverview {
@@ -57,6 +70,14 @@ const PIE_COLORS = [
   "#ec4899",
 ];
 
+const RANGES = [
+  { value: "7", label: "7D", days: 7, title: "last 7 days" },
+  { value: "14", label: "2W", days: 14, title: "last 2 weeks" },
+  { value: "30", label: "1M", days: 30, title: "last 30 days" },
+  { value: "60", label: "2M", days: 60, title: "last 2 months" },
+  { value: "90", label: "3M", days: 90, title: "last 3 months" },
+];
+
 function monthOptions(): string[] {
   const base = new Date();
   const out: string[] = [];
@@ -73,9 +94,25 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [range, setRange] = useState("7");
+  const [trend, setTrend] = useState<Trend | null>(null);
+  const [trendLoading, setTrendLoading] = useState(false);
+
   const load = useCallback(async (key: string) => {
     const result = await api<ReportOverview>(`/api/reports?month=${key}`);
     setData(result);
+  }, []);
+
+  const loadTrend = useCallback(async (days: number) => {
+    setTrendLoading(true);
+    try {
+      const result = await api<Trend>(`/api/reports?kind=trend&days=${days}`);
+      setTrend(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load trend");
+    } finally {
+      setTrendLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -91,12 +128,21 @@ export default function ReportsPage() {
     })();
   }, [load, month]);
 
+  useEffect(() => {
+    void loadTrend(7);
+  }, [loadTrend]);
+
   const income = data?.breakdown.totalIncomeMinor ?? 0;
   const expense = data?.breakdown.totalExpenseMinor ?? 0;
   const net = income - expense;
   const categories = data?.breakdown.categories ?? [];
-  const dailyExpense = data?.dailyExpense ?? [];
   const hasData = income > 0 || expense > 0;
+
+  const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
+  const points = trend?.points ?? [];
+  const trendTotal = points.reduce((sum, p) => sum + p.minor, 0);
+  const trendAvg = points.length > 0 ? Math.round(trendTotal / points.length) : 0;
+  const trendEmpty = points.length > 0 && points.every((p) => p.minor === 0);
 
   return (
     <div className="space-y-6">
@@ -207,23 +253,92 @@ export default function ReportsPage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Last 7 days&apos; expenses</CardTitle>
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+                <CardTitle>Expenses &middot; {activeRange.title}</CardTitle>
+                <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5">
+                  {RANGES.map((r) => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => {
+                        setRange(r.value);
+                        void loadTrend(r.days);
+                      }}
+                      className={cn(
+                        "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                        range === r.value
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
-                {dailyExpense.every((d) => d.minor === 0) ? (
+                <div className="mb-4 grid grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-muted/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Total spent</p>
+                    <p className="mt-0.5 text-xl font-semibold text-destructive">
+                      {formatMoney(trendTotal)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      {trend?.granularity === "week" ? "Weekly average" : "Daily average"}
+                    </p>
+                    <p className="mt-0.5 text-xl font-semibold">{formatMoney(trendAvg)}</p>
+                  </div>
+                </div>
+
+                {trendLoading && !trend ? (
+                  <LoadingState label="Loading trend..." />
+                ) : trendEmpty ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    No expenses in the last 7 days.
+                    No expenses in the {activeRange.title}.
                   </p>
                 ) : (
-                  <div className="h-72">
+                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dailyExpense}>
+                      <BarChart
+                        data={points}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="expenseBar" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.95} />
+                            <stop offset="100%" stopColor="#fb7185" stopOpacity={0.3} />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="label" fontSize={11} />
-                        <YAxis fontSize={11} tickFormatter={(v: number) => formatMoney(v)} />
-                        <Tooltip formatter={(value: number) => formatMoney(value)} />
-                        <Bar dataKey="minor" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        <XAxis
+                          dataKey="label"
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                          interval="preserveStartEnd"
+                          minTickGap={16}
+                        />
+                        <YAxis
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                          width={58}
+                          tickFormatter={(v: number) => formatMoney(v)}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(148, 163, 184, 0.15)" }}
+                          formatter={(value: number) => [formatMoney(value), "Expenses"]}
+                          contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                        />
+                        <Bar
+                          dataKey="minor"
+                          name="Expenses"
+                          fill="url(#expenseBar)"
+                          radius={[6, 6, 0, 0]}
+                          maxBarSize={44}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
