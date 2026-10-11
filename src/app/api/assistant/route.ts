@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
       },
     }).catch(() => null);
 
+    await prisma.aiSession
+      .update({ where: { id: sessionId }, data: { updatedAt: new Date() } })
+      .catch(() => null);
+
     return { ...result, sessionId };
   });
 }

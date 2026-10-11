@@ -103,13 +103,5 @@ export async function createAiSession(userId: string, firstMessage: string) {
   const session = await prisma.aiSession.create({
     data: { userId, title: firstMessage.slice(0, 80) },
   });
-  await prisma.aiMessage.create({
-    data: {
-      userId,
-      sessionId: session.id,
-      role: "user",
-      content: firstMessage,
-    },
-  });
   return session;
 }

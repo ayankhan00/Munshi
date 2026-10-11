@@ -50,3 +50,24 @@
  GET /api/me 200 in 3366ms
  ✓ Compiled /api/me/password in 339ms (755 modules)
  POST /api/me/password 200 in 5110ms
+ ✓ Compiled in 221ms (287 modules)
+ GET /settings 200 in 3637ms
+ ✓ Compiled in 151ms (287 modules)
+ GET /settings 200 in 2261ms
+ ✓ Compiled /api/me in 759ms (738 modules)
+ ✓ Compiled in 1ms (481 modules)
+ GET /settings 200 in 5117ms
+ GET /api/me 200 in 6359ms
+ ✓ Compiled in 416ms (770 modules)
+ GET /settings 200 in 2562ms
+ ✓ Compiled /api/auth/register in 324ms (482 modules)
+ POST /api/auth/register 201 in 6200ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 511ms (818 modules)
+ GET /settings 200 in 4519ms
+ POST /api/assistant 200 in 18150ms
+ POST /api/assistant 200 in 9414ms
+ GET /api/assistant 200 in 3149ms
+ GET /api/assistant?sessionId=cmv3rrzsh00493mqgrs2gsdii 200 in 4096ms
+ GET /assistant 307 in 219ms
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
