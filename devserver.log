@@ -88,3 +88,16 @@ prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { 
  ✓ Compiled /api/auth/register in 429ms (487 modules)
  POST /api/auth/register 201 in 6298ms
  GET / 307 in 2316ms
+ ✓ Compiled in 1221ms (738 modules)
+ GET /settings 200 in 2684ms
+ ✓ Compiled in 554ms (738 modules)
+ GET /settings 200 in 2432ms
+ ✓ Compiled in 471ms (738 modules)
+ GET /settings 200 in 2301ms
+ ✓ Compiled /api/auth/register in 130ms (482 modules)
+ POST /api/auth/register 201 in 5921ms
+ ○ Compiling /api/assistant ...
+ ✓ Compiled /api/assistant in 771ms (818 modules)
+ POST /api/assistant 200 in 8048ms
+ POST /api/assistant 200 in 7179ms
+ GET /api/assistant 200 in 3052ms

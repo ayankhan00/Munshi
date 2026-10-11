@@ -91,22 +91,26 @@ export default function AssistantPage() {
 
   useEffect(() => {
     void (async () => {
-      await loadSessions();
+      const list = await loadSessions();
       const saved = window.localStorage.getItem(SESSION_KEY);
-      if (saved) await openSession(saved);
+      if (saved && (await openSession(saved))) return;
+      if (saved) window.localStorage.removeItem(SESSION_KEY);
+      if (list.length > 0) await openSession(list[0].id);
     })();
   }, []);
 
-  async function loadSessions() {
+  async function loadSessions(): Promise<ChatSession[]> {
     try {
       const res = await api<{ sessions: ChatSession[] }>("/api/assistant");
-      setSessions(res.sessions.slice(0, 15));
+      const list = res.sessions.slice(0, 15);
+      setSessions(list);
+      return list;
     } catch {
-      // ignore
+      return [];
     }
   }
 
-  async function openSession(id: string) {
+  async function openSession(id: string): Promise<boolean> {
     try {
       const res = await api<{ session: ChatSession; messages: SessionMessage[] }>(
         `/api/assistant?sessionId=${id}`,
@@ -135,8 +139,9 @@ export default function AssistantPage() {
       }
       setUsingGemini(used);
       setShowHistory(false);
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   }
 
