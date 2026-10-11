@@ -1,31 +1,37 @@
-﻿# Personal AI Finance, Tasks & Reminder Assistant
+﻿# Munshi
 
-Local development and production setup instructions.
+Munshi (Urdu for "assistant") is a personal AI finance, tasks & reminder assistant. Track salary, expenses, budgets, savings, tasks, and reminders using natural text or voice commands.
 
-## Quick Start (Local)
-1. Install deps: 
-npm install
-2. Copy env: cp .env.example .env (or create .env with required values)
-3. Set secrets: SESSION_SECRET, CRON_SECRET (use crypto.randomBytes)
-4. DB: 
-npx prisma migrate deploy then 
-npx tsx prisma/seed.ts
-5. Dev: 
-npm run dev → http://localhost:3000
+## Stack
+- Next.js 15 (App Router) + React 19 + TypeScript
+- Prisma ORM + PostgreSQL (Supabase)
+- Tailwind CSS
+- Optional: Google Gemini (natural-language parsing) and Web Push notifications
 
-Demo: demo@local.test / password123
+## Quick start (local)
+1. Install deps:
+   `npm install`
+2. Create env:
+   `cp .env.example .env` (or on Windows: `copy .env.example .env`)
+   Fill in `DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`, `SESSION_SECRET`, `CRON_SECRET`.
+3. Apply migrations (and optionally seed demo data):
+   `npx prisma migrate deploy`
+   `npm run db:seed`
+4. Run dev:
+   `npm run dev` -> http://localhost:3000
+
+Demo account (after seeding): `demo@local.test` / `password123`
 
 ## Production (Vercel + Supabase)
-- DATABASE_URL: PostgreSQL with sslmode=require
-- Migrate: 
-npx prisma migrate deploy
-- Env vars: see .env.example
-- Cron: POST /api/cron/run with Authorization: Bearer CRON_SECRET
-- Web Push optional
+- Set all env vars from `.env.example`. Use the Supabase **transaction pooler** (port 6543, `?pgbouncer=true&connection_limit=1`) for `DATABASE_URL` and the **session pooler** (port 5432) for `DIRECT_URL`.
+- Deploys run `prisma migrate deploy` automatically via the build script.
+- Cron: `GET /api/cron/run` with `Authorization: Bearer $CRON_SECRET`.
+- Web Push is optional; in-app notifications work without it.
 
-## Testing
-
-pm test, 
-pm run typecheck, 
-pm run build
-
+## Scripts
+- `npm run dev` - start the dev server
+- `npm test` - run the test suite (uses `TEST_DATABASE_URL` with `?schema=test`)
+- `npm run typecheck` - `tsc --noEmit`
+- `npm run build` - migrate + generate + build
+- `npm run lint` - ESLint
+- `npm run db:seed` - seed demo data

@@ -1,4 +1,4 @@
-// Personal AI Finance, Tasks & Reminder Assistant
+// Munshi - Personal AI Finance, Tasks & Reminder Assistant
 // Database: PostgreSQL (Supabase). Enum-like fields are Strings with server-side
 // Zod validation. Integer columns store money in minor units (paisa).
 

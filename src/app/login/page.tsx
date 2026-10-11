@@ -66,8 +66,8 @@ export default function LoginPage() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wallet className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-semibold">Finance Assistant</h1>
-          <p className="text-sm text-muted-foreground">Sign in to continue</p>
+          <h1 className="text-xl font-semibold">Munshi</h1>
+          <p className="text-sm text-muted-foreground">Sign in to your finance assistant</p>
         </div>
 
         <Card>

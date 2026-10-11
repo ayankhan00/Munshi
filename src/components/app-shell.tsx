@@ -109,7 +109,7 @@ export default function AppShell({
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card md:flex">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
           <Wallet className="h-5 w-5" />
-          <span className="font-semibold">Finance Assistant</span>
+          <span className="font-semibold">Munshi</span>
         </div>
         <div className="py-4">{nav}</div>
         {footer}
@@ -119,7 +119,7 @@ export default function AppShell({
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5" />
-          <span className="font-semibold">Finance Assistant</span>
+          <span className="font-semibold">Munshi</span>
         </div>
         <Button variant="ghost" size="icon" aria-label="Menu" onClick={() => setOpen((v) => !v)}>
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

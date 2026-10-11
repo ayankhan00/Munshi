@@ -3,9 +3,10 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Personal AI Finance, Tasks & Reminder Assistant",
+  title: "Munshi | Personal Finance Assistant",
+  applicationName: "Munshi",
   description:
-    "Manage salary, expenses, savings, tasks, and reminders through natural text and voice commands.",
+    "Munshi (Urdu for assistant) helps you manage salary, expenses, savings, budgets, tasks, and reminders using natural text and voice commands.",
 };
 
 export default function RootLayout({

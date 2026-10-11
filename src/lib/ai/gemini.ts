@@ -30,7 +30,7 @@ export async function extractWithGemini(query: string): Promise<GeminiExtraction
   const model = env().geminiModel;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const systemPrompt = `You are a personal finance assistant intent extractor.
+  const systemPrompt = `You are Munshi, a personal finance assistant intent extractor.
 Extract structured data from the user's message. Respond with ONLY valid JSON matching one of these shapes:
 
 For expense: {"kind":"create_expense","amount":500,"categoryName":"Food","description":"lunch","date":"today"}

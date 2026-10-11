@@ -1,7 +1,8 @@
 {
-  "name": "personal-assistant",
+  "name": "munshi",
   "version": "1.0.0",
   "private": true,
+  "description": "Munshi - personal AI finance, tasks & reminder assistant",
   "type": "module",
   "scripts": {
     "dev": "next dev",
