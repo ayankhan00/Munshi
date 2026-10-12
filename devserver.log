@@ -4,18 +4,47 @@
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 2.7s
+ ✓ Ready in 12.9s
+ ○ Compiling /api/accounts ...
+ ✓ Compiled /api/accounts in 2.2s (664 modules)
+ GET /api/accounts 401 in 2937ms
+ ○ Compiling /api/categories ...
+ ✓ Compiled /api/categories in 681ms (666 modules)
+ GET /api/categories 401 in 888ms
+ ○ Compiling /accounts ...
+ ✓ Compiled /accounts in 2s (1123 modules)
+ GET /accounts 307 in 2415ms
  ○ Compiling /login ...
-(node:26704) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(node:23728) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled /login in 4s (684 modules)
- GET /login 200 in 4378ms
- GET /login 200 in 53ms
- GET /login 200 in 47ms
- ✓ Compiled /icon.png in 248ms (440 modules)
- GET /icon.png 200 in 415ms
- ✓ Compiled /apple-icon.png in 114ms (442 modules)
- GET /apple-icon.png 200 in 174ms
- ✓ Compiled /manifest.webmanifest in 320ms (710 modules)
- GET /manifest.webmanifest 200 in 426ms
- ✓ Compiled in 241ms (262 modules)
+ ✓ Compiled /login in 3.5s (1146 modules)
+ GET /login 200 in 3880ms
+ ○ Compiling /categories ...
+ ✓ Compiled /categories in 1439ms (1141 modules)
+ GET /categories 307 in 1719ms
+ GET /login 200 in 112ms
+ ○ Compiling /transactions ...
+ ✓ Compiled /transactions in 635ms (1148 modules)
+ GET /transactions 307 in 920ms
+ GET /login 200 in 95ms
+ ✓ Compiled /api/auth/register in 480ms (1151 modules)
+ POST /api/auth/register 201 in 7980ms
+ GET /api/accounts 200 in 5350ms
+ POST /api/accounts 200 in 3340ms
+ PATCH /api/accounts?id=cmv5r5r8000113mb49m2bp5np 200 in 5486ms
+ GET /api/categories 200 in 4315ms
+ POST /api/categories 200 in 4303ms
+ PATCH /api/categories?id=cmv5r624000133mb47y6grep0 200 in 5476ms
+ ✓ Compiled /api/transactions in 353ms (761 modules)
+ POST /api/transactions 200 in 9698ms
+ POST /api/transactions 200 in 9373ms
+ POST /api/transactions 200 in 9168ms
+ GET /api/transactions?q=latte 200 in 5263ms
+ GET /api/transactions?categoryId=cmv5r624000133mb47y6grep0 200 in 5077ms
+ GET /api/transactions?from=2026-10-13&to=2026-10-13 200 in 5465ms
+ GET /api/transactions?type=transfer 200 in 5279ms
+ DELETE /api/categories?id=cmv5r624000133mb47y6grep0 200 in 4299ms
+ GET /api/categories 200 in 4297ms
+ DELETE /api/accounts?id=cmv5r5r8000113mb49m2bp5np 200 in 7133ms
+ GET /api/accounts 200 in 5283ms
+ ✓ Compiled in 346ms (299 modules)

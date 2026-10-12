@@ -17,6 +17,8 @@ import {
   Menu,
   X,
   Wallet,
+  Landmark,
+  Tags,
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,8 @@ const NAV = [
   { href: "/assistant", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/accounts", label: "Accounts", icon: Landmark },
+  { href: "/categories", label: "Categories", icon: Tags },
   { href: "/recurring", label: "Recurring", icon: Repeat },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/tasks", label: "Tasks", icon: ListTodo },

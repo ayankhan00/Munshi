@@ -1,7 +1,8 @@
 import { type NextRequest } from "next/server";
+import { z } from "zod";
 import { unwrapAsync, requireApiUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
-import { categoryCreateSchema } from "@/lib/validation";
+import { categoryCreateSchema, categoryUpdateSchema } from "@/lib/validation";
 import { installDefaultCategories } from "@/lib/services/transactions";
 
 export async function GET(request: NextRequest) {
@@ -46,5 +47,51 @@ export async function POST(request: NextRequest) {
       },
     });
     return category;
+  });
+}
+
+export async function PATCH(request: NextRequest) {
+  return unwrapAsync(async () => {
+    const user = await requireApiUser();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id || !z.string().cuid().safeParse(id).success) throw new Error("Missing id");
+    const body = await request.json().catch(() => ({}));
+    const parsed = categoryUpdateSchema.parse(body);
+    const existing = await prisma.category.findFirst({ where: { id, userId: user.id } });
+    if (!existing) throw new Error("Category not found");
+    if (parsed.name && parsed.name !== existing.name) {
+      const clash = await prisma.category.findFirst({
+        where: {
+          userId: user.id,
+          name: parsed.name,
+          kind: parsed.kind ?? existing.kind,
+          id: { not: id },
+        },
+      });
+      if (clash) throw new Error("A category with that name already exists");
+    }
+    const category = await prisma.category.update({
+      where: { id },
+      data: {
+        name: parsed.name ?? undefined,
+        color: parsed.color ?? undefined,
+        icon: parsed.icon ?? undefined,
+      },
+    });
+    return category;
+  });
+}
+
+export async function DELETE(request: NextRequest) {
+  return unwrapAsync(async () => {
+    const user = await requireApiUser();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id || !z.string().cuid().safeParse(id).success) throw new Error("Missing id");
+    const existing = await prisma.category.findFirst({ where: { id, userId: user.id } });
+    if (!existing) throw new Error("Category not found");
+    await prisma.category.update({ where: { id }, data: { archived: true } });
+    return { archived: true };
   });
 }

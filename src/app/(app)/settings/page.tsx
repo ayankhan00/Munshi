@@ -29,6 +29,8 @@ interface Me {
   savingsGoalMinor: number;
   financialMonthStartDay: number;
   notificationsEnabled: boolean;
+  quietHoursStart: number | null;
+  quietHoursEnd: number | null;
   theme: string;
 }
 

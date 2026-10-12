@@ -161,12 +161,18 @@ export const categoryCreateSchema = z.object({
   icon: z.string().max(40).optional(),
 });
 
+export const categoryUpdateSchema = categoryCreateSchema.partial();
+
 export const accountCreateSchema = z.object({
   name: z.string().trim().min(1).max(60),
   type: z.enum(["cash", "bank", "wallet", "credit", "other"]).default("cash"),
   openingBalanceMinor: z.number().int().optional().default(0),
   currency: z.string().length(3).toUpperCase().default("PKR"),
   isDefault: z.boolean().optional().default(false),
+});
+
+export const accountUpdateSchema = accountCreateSchema.partial().extend({
+  archived: z.boolean().optional(),
 });
 
 export const recurringFrequencies = ["daily", "weekly", "monthly", "yearly"] as const;

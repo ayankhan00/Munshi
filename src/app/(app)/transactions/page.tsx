@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, formatMoney } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
@@ -58,6 +57,11 @@ export default function TransactionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [form, setForm] = useState({
     type: "expense",
     amount: "",
@@ -67,12 +71,31 @@ export default function TransactionsPage() {
     date: todayLocal(),
   });
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
   const loadRows = useCallback(async () => {
-    const data = await api<{ rows: TxRow[] }>(
-      `/api/transactions?pageSize=50&type=${filter}`,
-    );
+    const params = new URLSearchParams({ pageSize: "50" });
+    if (filter !== "all") params.set("type", filter);
+    if (debouncedQ) params.set("q", debouncedQ);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (categoryId) params.set("categoryId", categoryId);
+    const data = await api<{ rows: TxRow[] }>(`/api/transactions?${params.toString()}`);
     setRows(data.rows);
-  }, [filter]);
+  }, [filter, debouncedQ, from, to, categoryId]);
+
+  function resetFilters() {
+    setQ("");
+    setDebouncedQ("");
+    setFrom("");
+    setTo("");
+    setCategoryId("");
+    setFilter("all");
+    setLoading(true);
+  }
 
   useEffect(() => {
     (async () => {
@@ -242,24 +265,90 @@ export default function TransactionsPage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Recent transactions</CardTitle>
-          <Select
-            className="w-auto"
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value);
-              setLoading(true);
-            }}
-          >
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-            <option value="transfer">Transfer</option>
-            <option value="refund">Refund</option>
-          </Select>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <FieldGroup>
+              <Label htmlFor="f-q">Search</Label>
+              <Input
+                id="f-q"
+                type="search"
+                placeholder="Description or notes"
+                value={q}
+                onChange={(e) => {
+                  setLoading(true);
+                  setQ(e.target.value);
+                }}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="f-type">Type</Label>
+              <Select
+                id="f-type"
+                value={filter}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setLoading(true);
+                }}
+              >
+                <option value="all">All types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer</option>
+                <option value="refund">Refund</option>
+                <option value="adjustment">Adjustment</option>
+              </Select>
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="f-category">Category</Label>
+              <Select
+                id="f-category"
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setLoading(true);
+                }}
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="f-from">From</Label>
+              <Input
+                id="f-from"
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setLoading(true);
+                }}
+              />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="f-to">To</Label>
+              <Input
+                id="f-to"
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setLoading(true);
+                }}
+              />
+            </FieldGroup>
+            <div className="flex items-end">
+              <Button variant="outline" onClick={resetFilters}>
+                Reset filters
+              </Button>
+            </div>
+          </div>
           {loading ? (
             <LoadingState label="Loading transactions..." />
           ) : rows.length === 0 ? (
