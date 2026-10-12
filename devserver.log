@@ -48,3 +48,120 @@
  DELETE /api/accounts?id=cmv5r5r8000113mb49m2bp5np 200 in 7133ms
  GET /api/accounts 200 in 5283ms
  ✓ Compiled in 346ms (299 modules)
+ ✓ Compiled in 241ms (299 modules)
+ ✓ Compiled in 166ms (299 modules)
+ ✓ Compiled in 173ms (299 modules)
+ ✓ Compiled in 221ms (299 modules)
+ ✓ Compiled in 182ms (299 modules)
+ ✓ Compiled in 214ms (299 modules)
+ ✓ Compiled in 173ms (299 modules)
+ ✓ Compiled in 171ms (299 modules)
+ ✓ Compiled in 177ms (299 modules)
+ ✓ Compiled in 175ms (299 modules)
+ ✓ Compiled in 183ms (299 modules)
+ ✓ Compiled in 155ms (299 modules)
+ ✓ Compiled in 156ms (299 modules)
+ ✓ Compiled in 162ms (299 modules)
+ ✓ Compiled in 233ms (299 modules)
+ ✓ Compiled in 144ms (299 modules)
+ ✓ Compiled in 161ms (299 modules)
+ ✓ Compiled in 129ms (299 modules)
+ ✓ Compiled in 258ms (299 modules)
+ ✓ Compiled in 195ms (299 modules)
+ ✓ Compiled in 171ms (299 modules)
+ ✓ Compiled in 185ms (299 modules)
+ ✓ Compiled in 237ms (299 modules)
+ ✓ Compiled in 165ms (299 modules)
+ ✓ Compiled in 170ms (299 modules)
+ ✓ Compiled in 181ms (299 modules)
+ ✓ Compiled in 146ms (299 modules)
+ ✓ Compiled in 250ms (299 modules)
+ ✓ Compiled in 227ms (300 modules)
+ ✓ Compiled in 147ms (300 modules)
+ ✓ Compiled in 157ms (300 modules)
+ ✓ Compiled in 142ms (300 modules)
+ ✓ Compiled in 157ms (300 modules)
+ ✓ Compiled in 154ms (300 modules)
+ ✓ Compiled in 147ms (300 modules)
+ ✓ Compiled in 219ms (300 modules)
+ ✓ Compiled in 150ms (300 modules)
+ ✓ Compiled in 170ms (300 modules)
+ ✓ Compiled in 165ms (300 modules)
+ ✓ Compiled in 157ms (300 modules)
+ ✓ Compiled in 171ms (300 modules)
+ ✓ Compiled in 155ms (300 modules)
+ ✓ Compiled in 154ms (300 modules)
+ ✓ Compiled in 200ms (300 modules)
+ ✓ Compiled in 157ms (300 modules)
+ ✓ Compiled in 153ms (300 modules)
+ ✓ Compiled in 161ms (300 modules)
+ ✓ Compiled in 201ms (300 modules)
+ ✓ Compiled in 175ms (300 modules)
+ ✓ Compiled in 178ms (300 modules)
+ ✓ Compiled in 160ms (300 modules)
+ ✓ Compiled in 198ms (300 modules)
+ ✓ Compiled in 167ms (300 modules)
+ ✓ Compiled in 240ms (300 modules)
+ ✓ Compiled in 161ms (300 modules)
+ ✓ Compiled in 155ms (300 modules)
+ ✓ Compiled in 230ms (300 modules)
+ ✓ Compiled /login in 170ms (423 modules)
+ GET /login 200 in 504ms
+ ✓ Compiled /api/auth/register in 128ms (137 modules)
+ POST /api/auth/register 201 in 6751ms
+ ✓ Compiled /api/accounts in 70ms (472 modules)
+ GET /api/accounts 200 in 4794ms
+ POST /api/accounts 200 in 2913ms
+ ✓ Compiled /api/categories in 275ms (474 modules)
+ GET /api/categories 200 in 4334ms
+ ✓ Compiled /api/transactions in 131ms (476 modules)
+ POST /api/transactions 200 in 8244ms
+ POST /api/transactions 200 in 8221ms
+ PUT /api/transactions 422 in 2081ms
+ POST /api/transactions 200 in 8109ms
+ ✓ Compiled /api/reports in 364ms (765 modules)
+ GET /api/reports?month=2026-10 200 in 7282ms
+ GET /api/reports?kind=savings&count=6 200 in 2918ms
+ GET /api/reports?kind=range&from=2026-10-01&to=2026-10-13 200 in 4455ms
+ ✓ Compiled /api/budgets in 190ms (768 modules)
+ POST /api/budgets 200 in 4206ms
+ GET /api/budgets 200 in 4106ms
+ ✓ Compiled /api/recurring in 248ms (768 modules)
+ POST /api/recurring 200 in 3267ms
+ PATCH /api/recurring 422 in 2060ms
+ GET /api/recurring 200 in 2912ms
+ ✓ Compiled /api/notifications in 182ms (769 modules)
+ GET /api/notifications?limit=100 200 in 4163ms
+ PATCH /api/notifications 200 in 2919ms
+ DELETE /api/notifications 200 in 2921ms
+ ✓ Compiled /api/me in 169ms (771 modules)
+ PUT /api/me 200 in 3132ms
+ ✓ Compiled /api/auth/register in 62ms (153 modules)
+ POST /api/auth/register 201 in 5485ms
+ ✓ Compiled /api/accounts in 79ms (479 modules)
+ GET /api/accounts 200 in 4770ms
+ POST /api/accounts 200 in 2928ms
+ ✓ Compiled /api/categories in 74ms (474 modules)
+ GET /api/categories 200 in 4093ms
+ ✓ Compiled /api/transactions in 77ms (476 modules)
+ POST /api/transactions 200 in 8192ms
+ POST /api/transactions 200 in 8202ms
+ PUT /api/transactions 200 in 7186ms
+ POST /api/transactions 200 in 8201ms
+ ✓ Compiled /api/reports in 89ms (479 modules)
+ GET /api/reports?month=2026-10 200 in 6818ms
+ GET /api/reports?kind=savings&count=6 200 in 2917ms
+ GET /api/reports?kind=range&from=2026-10-01&to=2026-10-13 200 in 4620ms
+ ✓ Compiled /api/budgets in 95ms (479 modules)
+ POST /api/budgets 200 in 3940ms
+ GET /api/budgets 200 in 4107ms
+ ✓ Compiled /api/recurring in 107ms (482 modules)
+ POST /api/recurring 200 in 3090ms
+ PATCH /api/recurring 200 in 3950ms
+ GET /api/recurring 200 in 2919ms
+ ✓ Compiled /api/notifications in 113ms (483 modules)
+ GET /api/notifications?limit=100 200 in 3937ms
+ PATCH /api/notifications 200 in 2925ms
+ DELETE /api/notifications 200 in 2919ms
+ ✓ Compiled /api/me in 103ms (485 modules)
+ PUT /api/me 200 in 3247ms

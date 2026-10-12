@@ -68,7 +68,10 @@ export async function categoryBreakdown(
   const end = monthRange(monthKeys[monthKeys.length - 1], tz, startDay).endExclusive;
   const txns = await rangeSummulative(userId, { from: start, toExclusive: end });
 
-  const expenseByCategory = new Map<string, { name: string; color: string; minor: number }>();
+  const expenseByCategory = new Map<
+    string,
+    { id: string | null; name: string; color: string; minor: number }
+  >();
   let totalExpense = 0;
   let totalIncome = 0;
 
@@ -78,6 +81,7 @@ export async function categoryBreakdown(
       totalExpense += t.amountMinor;
       const key = t.categoryId ?? "none";
       const prev = expenseByCategory.get(key) ?? {
+        id: t.categoryId ?? null,
         name: t.category?.name ?? "Uncategorized",
         color: t.category?.color ?? "#64748b",
         minor: 0,
@@ -87,8 +91,8 @@ export async function categoryBreakdown(
     }
   }
 
-  const categories = [...expenseByCategory.entries()]
-    .map(([, v]) => ({
+  const categories = [...expenseByCategory.values()]
+    .map((v) => ({
       ...v,
       percent: totalExpense > 0 ? Math.round((v.minor / totalExpense) * 1000) / 10 : 0,
     }))

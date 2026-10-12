@@ -1,7 +1,10 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -13,21 +16,43 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { api, formatMoney } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 
 interface CategorySlice {
+  id: string | null;
   name: string;
   color: string;
   minor: number;
   percent: number;
+}
+
+interface SavingsPoint {
+  monthKey: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  savingsMinor: number;
+}
+
+interface RangeReport {
+  from: string;
+  to: string;
+  summary: { incomeMinor: number; expenseMinor: number; netMinor: number };
+  topExpenses: Array<{
+    id: string;
+    amountMinor: number;
+    occurredAt: string;
+    description: string | null;
+    categoryId: string | null;
+    category: { name: string; color: string } | null;
+  }>;
 }
 
 interface TrendPoint {
@@ -98,6 +123,20 @@ export default function ReportsPage() {
   const [trend, setTrend] = useState<Trend | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
 
+  const [savings, setSavings] = useState<SavingsPoint[]>([]);
+  const [rangeFrom, setRangeFrom] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [rangeTo, setRangeTo] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+  });
+  const [rangeReport, setRangeReport] = useState<RangeReport | null>(null);
+  const [rangeLoading, setRangeLoading] = useState(false);
+
   const load = useCallback(async (key: string) => {
     const result = await api<ReportOverview>(`/api/reports?month=${key}`);
     setData(result);
@@ -114,6 +153,31 @@ export default function ReportsPage() {
       setTrendLoading(false);
     }
   }, []);
+
+  const loadSavings = useCallback(async () => {
+    try {
+      const result = await api<SavingsPoint[]>(`/api/reports?kind=savings&count=6`);
+      setSavings(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load savings");
+    }
+  }, []);
+
+  const loadRange = useCallback(async () => {
+    if (!rangeFrom || !rangeTo) return;
+    setRangeLoading(true);
+    setError("");
+    try {
+      const result = await api<RangeReport>(
+        `/api/reports?kind=range&from=${rangeFrom}&to=${rangeTo}`,
+      );
+      setRangeReport(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load range report");
+    } finally {
+      setRangeLoading(false);
+    }
+  }, [rangeFrom, rangeTo]);
 
   useEffect(() => {
     (async () => {
@@ -132,6 +196,10 @@ export default function ReportsPage() {
     void loadTrend(7);
   }, [loadTrend]);
 
+  useEffect(() => {
+    void loadSavings();
+  }, [loadSavings]);
+
   const income = data?.breakdown.totalIncomeMinor ?? 0;
   const expense = data?.breakdown.totalExpenseMinor ?? 0;
   const net = income - expense;
@@ -147,7 +215,11 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Reports" description="Understand where your money goes.">
-        <Select value={month} onChange={(e) => setMonth(e.target.value)} className="w-40">
+        <Select
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="w-40 print:hidden"
+        >
           {monthOptions().map((o) => (
             <option key={o} value={o}>
               {o}
@@ -161,6 +233,14 @@ export default function ReportsPage() {
           <Download className="h-4 w-4" />
           Export CSV
         </a>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <Printer className="h-4 w-4" />
+          Print
+        </button>
       </PageHeader>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -349,6 +429,64 @@ export default function ReportsPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Net worth &middot; savings over time</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {savings.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No savings history yet.
+                </p>
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={savings.map((s) => ({
+                        label: s.monthKey,
+                        savingsMinor: s.savingsMinor,
+                      }))}
+                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="savingsArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        width={58}
+                        tickFormatter={(v: number) => formatMoney(v)}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [formatMoney(value), "Cumulative savings"]}
+                        contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="savingsMinor"
+                        name="Cumulative savings"
+                        stroke="#059669"
+                        strokeWidth={2}
+                        fill="url(#savingsArea)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Category breakdown</CardTitle>
             </CardHeader>
             <CardContent>
@@ -356,25 +494,130 @@ export default function ReportsPage() {
                 <EmptyState title="No categories to show" />
               ) : (
                 <ul className="divide-y divide-border">
-                  {categories.map((c, i) => (
-                    <li
-                      key={c.name}
-                      className="flex items-center justify-between py-2.5 text-sm"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{
-                            backgroundColor: c.color || PIE_COLORS[i % PIE_COLORS.length],
-                          }}
-                        />
-                        {c.name}
-                        <span className="text-xs text-muted-foreground">{c.percent}%</span>
-                      </span>
-                      <span className="font-medium tabular-nums">{formatMoney(c.minor)}</span>
-                    </li>
-                  ))}
+                  {categories.map((c, i) => {
+                    const inner = (
+                      <>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{
+                              backgroundColor: c.color || PIE_COLORS[i % PIE_COLORS.length],
+                            }}
+                          />
+                          {c.name}
+                          <span className="text-xs text-muted-foreground">{c.percent}%</span>
+                        </span>
+                        <span className="font-medium tabular-nums">{formatMoney(c.minor)}</span>
+                      </>
+                    );
+                    return (
+                      <li key={c.name} className="text-sm">
+                        {c.id ? (
+                          <Link
+                            href={`/transactions?categoryId=${c.id}`}
+                            className="flex items-center justify-between py-2.5 transition-colors hover:text-foreground"
+                          >
+                            {inner}
+                          </Link>
+                        ) : (
+                          <div className="flex items-center justify-between py-2.5">{inner}</div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+              <CardTitle>Custom range</CardTitle>
+              <div className="flex flex-wrap items-end gap-2 print:hidden">
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">From</label>
+                  <Input
+                    type="date"
+                    value={rangeFrom}
+                    onChange={(e) => setRangeFrom(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    value={rangeTo}
+                    onChange={(e) => setRangeTo(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+                <Button size="sm" onClick={loadRange} disabled={rangeLoading}>
+                  {rangeLoading ? "Loading..." : "Apply"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!rangeReport ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Pick a date range and click Apply.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-lg bg-muted/40 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">Income</p>
+                      <p className="mt-0.5 text-xl font-semibold text-emerald-600">
+                        {formatMoney(rangeReport.summary.incomeMinor)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">Expenses</p>
+                      <p className="mt-0.5 text-xl font-semibold text-destructive">
+                        {formatMoney(rangeReport.summary.expenseMinor)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">Net</p>
+                      <p
+                        className={
+                          rangeReport.summary.netMinor >= 0
+                            ? "mt-0.5 text-xl font-semibold text-emerald-600"
+                            : "mt-0.5 text-xl font-semibold text-destructive"
+                        }
+                      >
+                        {formatMoney(rangeReport.summary.netMinor)}
+                      </p>
+                    </div>
+                  </div>
+                  {rangeReport.topExpenses.length > 0 ? (
+                    <div>
+                      <p className="mb-2 text-sm font-medium">Top expenses</p>
+                      <ul className="divide-y divide-border">
+                        {rangeReport.topExpenses.map((t) => (
+                          <li
+                            key={t.id}
+                            className="flex items-center justify-between py-2 text-sm"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: t.category?.color ?? "#64748b" }}
+                              />
+                              {t.description || t.category?.name || "Expense"}
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(t.occurredAt).toLocaleDateString()}
+                              </span>
+                            </span>
+                            <span className="font-medium tabular-nums">
+                              {formatMoney(t.amountMinor)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
               )}
             </CardContent>
           </Card>

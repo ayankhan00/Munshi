@@ -19,6 +19,7 @@ import {
   Wallet,
   Landmark,
   Tags,
+  Bell,
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const NAV = [
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Reminders", icon: BellRing },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -118,7 +120,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card md:flex print:hidden">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
           <Wallet className="h-5 w-5" />
           <span className="font-semibold">Munshi</span>
@@ -128,7 +130,7 @@ export default function AppShell({
       </aside>
 
       {/* Mobile header */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden print:hidden">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5" />
           <span className="font-semibold">Munshi</span>
@@ -149,8 +151,10 @@ export default function AppShell({
         </div>
       ) : null}
 
-      <main className="md:pl-64">
-        <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+      <main className="md:pl-64 print:pl-0">
+        <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
+          {children}
+        </div>
       </main>
     </div>
   );

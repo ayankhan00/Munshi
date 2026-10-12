@@ -60,7 +60,10 @@ export default function SettingsPage() {
     savingsGoalMinor: "",
     financialMonthStartDay: 1,
     notificationsEnabled: true,
+    quietHoursStart: 22,
+    quietHoursEnd: 7,
   });
+  const [quietEnabled, setQuietEnabled] = useState(false);
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const [pushStatus, setPushStatus] = useState<PushStatus | "loading">("loading");
   const [pushBusy, setPushBusy] = useState(false);
@@ -85,7 +88,10 @@ export default function SettingsPage() {
           savingsGoalMinor: data.savingsGoalMinor ? String(data.savingsGoalMinor / 100) : "",
           financialMonthStartDay: data.financialMonthStartDay,
           notificationsEnabled: data.notificationsEnabled,
+          quietHoursStart: data.quietHoursStart ?? 22,
+          quietHoursEnd: data.quietHoursEnd ?? 7,
         });
+        setQuietEnabled(data.quietHoursStart != null || data.quietHoursEnd != null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load settings");
       } finally {
@@ -153,6 +159,8 @@ export default function SettingsPage() {
             : 0,
           financialMonthStartDay: form.financialMonthStartDay,
           notificationsEnabled: form.notificationsEnabled,
+          quietHoursStart: quietEnabled ? form.quietHoursStart : null,
+          quietHoursEnd: quietEnabled ? form.quietHoursEnd : null,
         }),
       });
       setMessage("Profile saved.");
@@ -330,6 +338,45 @@ export default function SettingsPage() {
               />
               Enable notifications
             </label>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={quietEnabled}
+                onChange={(e) => setQuietEnabled(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              Quiet hours (pause notifications overnight)
+            </label>
+            {quietEnabled ? (
+              <>
+                <FieldGroup>
+                  <Label htmlFor="s-quiet-start">Quiet from (hour)</Label>
+                  <Input
+                    id="s-quiet-start"
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.quietHoursStart}
+                    onChange={(e) =>
+                      setForm({ ...form, quietHoursStart: Number(e.target.value) })
+                    }
+                  />
+                </FieldGroup>
+                <FieldGroup>
+                  <Label htmlFor="s-quiet-end">Quiet until (hour)</Label>
+                  <Input
+                    id="s-quiet-end"
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.quietHoursEnd}
+                    onChange={(e) =>
+                      setForm({ ...form, quietHoursEnd: Number(e.target.value) })
+                    }
+                  />
+                </FieldGroup>
+              </>
+            ) : null}
             <div className="sm:col-span-2">
               <Button type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Save profile"}

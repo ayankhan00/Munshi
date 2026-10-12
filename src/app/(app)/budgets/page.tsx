@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, formatMoney } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
@@ -39,7 +40,7 @@ export default function BudgetsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editState, setEditState] = useState<Record<string, string>>({});
-  const [form, setForm] = useState({ categoryId: "", amount: "" });
+  const [form, setForm] = useState({ categoryId: "", amount: "", rollover: false });
 
   const loadBudgets = useCallback(
     async (key: string) => {
@@ -79,9 +80,14 @@ export default function BudgetsPage() {
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
       await api("/api/budgets", {
         method: "POST",
-        body: JSON.stringify({ categoryId: form.categoryId || undefined, amount, period }),
+        body: JSON.stringify({
+          categoryId: form.categoryId || undefined,
+          amount,
+          period,
+          rollover: form.rollover,
+        }),
       });
-      setForm({ categoryId: "", amount: "" });
+      setForm({ categoryId: "", amount: "", rollover: false });
       await loadBudgets(period);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save budget");
@@ -101,7 +107,12 @@ export default function BudgetsPage() {
     try {
       await api("/api/budgets", {
         method: "POST",
-        body: JSON.stringify({ categoryId: row.categoryId ?? undefined, amount, period }),
+        body: JSON.stringify({
+          categoryId: row.categoryId ?? undefined,
+          amount,
+          period,
+          rollover: row.rollover,
+        }),
       });
       setEditState((s) => ({ ...s, [row.id]: "" }));
       await loadBudgets(period);
@@ -131,7 +142,7 @@ export default function BudgetsPage() {
           <CardTitle>Set a budget</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
             <FieldGroup>
               <Label htmlFor="b-category">Category</Label>
               <Select
@@ -160,6 +171,15 @@ export default function BudgetsPage() {
                 required
               />
             </FieldGroup>
+            <label className="flex items-center gap-2 pb-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.rollover}
+                onChange={(e) => setForm({ ...form, rollover: e.target.checked })}
+                className="h-4 w-4 accent-primary"
+              />
+              Roll over
+            </label>
             <Button type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </Button>
@@ -189,6 +209,7 @@ export default function BudgetsPage() {
                         style={{ backgroundColor: b.categoryColor ?? "#64748b" }}
                       />
                       {b.categoryName}
+                      {b.rollover ? <Badge tone="muted">Rollover</Badge> : null}
                     </span>
                     {b.overspentMinor > 0 ? (
                       <span className="text-sm font-medium text-destructive">

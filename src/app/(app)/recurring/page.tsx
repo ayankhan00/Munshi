@@ -17,6 +17,7 @@ interface RecurringTemplate {
   description?: string;
   categoryId?: string;
   accountId?: string;
+  transferAccountId?: string;
 }
 
 interface RecurringRule {
@@ -82,16 +83,19 @@ export default function RecurringPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const emptyForm = {
     type: "expense",
     amount: "",
     categoryId: "",
     accountId: "",
+    transferAccountId: "",
     description: "",
     frequency: "monthly",
     interval: 1,
     startDate: todayLocal(),
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
 
   const loadRows = useCallback(async () => {
     const data = await api<{ rows: RecurringRule[] }>("/api/recurring");
@@ -132,26 +136,54 @@ export default function RecurringPage() {
     try {
       const amount = parseFloat(form.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
-      await api("/api/recurring", {
-        method: "POST",
-        body: JSON.stringify({
-          type: form.type,
-          amount,
-          categoryId: form.categoryId || undefined,
-          accountId: form.accountId || undefined,
-          description: form.description,
-          frequency: form.frequency,
-          interval: form.interval,
-          startDate: form.startDate,
-        }),
-      });
-      setForm({ ...form, amount: "", description: "" });
+      const payload = {
+        type: form.type,
+        amount,
+        categoryId: form.categoryId || undefined,
+        accountId: form.accountId || undefined,
+        transferAccountId:
+          form.type === "transfer" ? form.transferAccountId || undefined : undefined,
+        description: form.description,
+        frequency: form.frequency,
+        interval: form.interval,
+        startDate: form.startDate,
+      };
+      if (editingId) {
+        await api("/api/recurring", {
+          method: "PATCH",
+          body: JSON.stringify({ id: editingId, ...payload }),
+        });
+        setEditingId(null);
+      } else {
+        await api("/api/recurring", { method: "POST", body: JSON.stringify(payload) });
+      }
+      setForm(emptyForm);
       await loadRows();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create recurring rule");
+      setError(err instanceof Error ? err.message : "Failed to save recurring rule");
     } finally {
       setSaving(false);
     }
+  }
+
+  function startEdit(rule: RecurringRule) {
+    setEditingId(rule.id);
+    setForm({
+      type: rule.template.type,
+      amount: typeof rule.template.amount === "number" ? String(rule.template.amount) : "",
+      categoryId: rule.template.categoryId ?? "",
+      accountId: rule.template.accountId ?? "",
+      transferAccountId: rule.template.transferAccountId ?? "",
+      description: rule.template.description ?? "",
+      frequency: rule.frequency,
+      interval: rule.interval,
+      startDate: rule.nextRunAt.slice(0, 10),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm);
   }
 
   async function toggleActive(rule: RecurringRule) {
@@ -193,7 +225,7 @@ export default function RecurringPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>New recurring transaction</CardTitle>
+          <CardTitle>{editingId ? "Edit recurring transaction" : "New recurring transaction"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -251,6 +283,25 @@ export default function RecurringPage() {
                   ))}
                 </Select>
               </FieldGroup>
+              {form.type === "transfer" ? (
+                <FieldGroup>
+                  <Label htmlFor="r-transfer-account">To account</Label>
+                  <Select
+                    id="r-transfer-account"
+                    value={form.transferAccountId}
+                    onChange={(e) =>
+                      setForm({ ...form, transferAccountId: e.target.value })
+                    }
+                  >
+                    <option value="">Select account</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldGroup>
+              ) : null}
               <FieldGroup>
                 <Label htmlFor="r-frequency">Frequency</Label>
                 <Select
@@ -294,9 +345,16 @@ export default function RecurringPage() {
                 />
               </FieldGroup>
             </div>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Create rule"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : editingId ? "Save changes" : "Create rule"}
+              </Button>
+              {editingId ? (
+                <Button type="button" variant="outline" onClick={cancelEdit}>
+                  Cancel
+                </Button>
+              ) : null}
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -341,6 +399,9 @@ export default function RecurringPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => startEdit(rule)}>
+                      Edit
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => toggleActive(rule)}>
                       {rule.active ? "Pause" : "Resume"}
                     </Button>

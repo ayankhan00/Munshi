@@ -17,8 +17,12 @@ interface TxRow {
   currency: string;
   occurredAt: string;
   description?: string | null;
+  categoryId?: string | null;
+  accountId?: string | null;
+  transferAccountId?: string | null;
   category?: { id: string; name: string; color: string } | null;
   account?: { id: string; name: string } | null;
+  transferAccount?: { id: string; name: string } | null;
 }
 
 interface Category {
@@ -62,19 +66,36 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [form, setForm] = useState({
+  const [editId, setEditId] = useState<string | null>(null);
+  const emptyForm = {
     type: "expense",
     amount: "",
     categoryId: "",
     accountId: "",
+    transferAccountId: "",
     description: "",
     date: todayLocal(),
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const initCategory = sp.get("categoryId");
+    const initType = sp.get("type");
+    const initFrom = sp.get("from");
+    const initTo = sp.get("to");
+    const initQ = sp.get("q");
+    if (initCategory) setCategoryId(initCategory);
+    if (initType) setFilter(initType);
+    if (initFrom) setFrom(initFrom);
+    if (initTo) setTo(initTo);
+    if (initQ) setQ(initQ);
+  }, []);
 
   const loadRows = useCallback(async () => {
     const params = new URLSearchParams({ pageSize: "50" });
@@ -131,24 +152,51 @@ export default function TransactionsPage() {
     try {
       const amount = parseFloat(form.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
-      await api("/api/transactions", {
-        method: "POST",
-        body: JSON.stringify({
-          type: form.type,
-          amount,
-          categoryId: form.categoryId || undefined,
-          accountId: form.accountId || undefined,
-          description: form.description,
-          date: form.date,
-        }),
-      });
-      setForm({ ...form, amount: "", description: "", categoryId: "" });
+      const payload = {
+        type: form.type,
+        amount,
+        categoryId: form.categoryId || undefined,
+        accountId: form.accountId || undefined,
+        transferAccountId:
+          form.type === "transfer" ? form.transferAccountId || undefined : undefined,
+        description: form.description,
+        date: form.date,
+      };
+      if (editId) {
+        await api("/api/transactions", {
+          method: "PUT",
+          body: JSON.stringify({ id: editId, ...payload }),
+        });
+        setEditId(null);
+      } else {
+        await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
+      }
+      setForm(emptyForm);
       await loadRows();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create transaction");
+      setError(err instanceof Error ? err.message : "Failed to save transaction");
     } finally {
       setSaving(false);
     }
+  }
+
+  function startEdit(t: TxRow) {
+    setEditId(t.id);
+    setForm({
+      type: t.type,
+      amount: String(t.amountMinor / 100),
+      categoryId: t.categoryId ?? "",
+      accountId: t.accountId ?? "",
+      transferAccountId: t.transferAccountId ?? "",
+      description: t.description ?? "",
+      date: t.occurredAt.slice(0, 10),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditId(null);
+    setForm(emptyForm);
   }
 
   async function handleDelete(id: string) {
@@ -171,7 +219,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add transaction</CardTitle>
+          <CardTitle>{editId ? "Edit transaction" : "Add transaction"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -230,21 +278,40 @@ export default function TransactionsPage() {
                   ))}
               </Select>
             </FieldGroup>
-            <FieldGroup>
-              <Label htmlFor="tx-account">Account</Label>
-              <Select
-                id="tx-account"
-                value={form.accountId}
-                onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-              >
-                <option value="">Default</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </Select>
-            </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="tx-account">Account</Label>
+                <Select
+                  id="tx-account"
+                  value={form.accountId}
+                  onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+                >
+                  <option value="">Default</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </FieldGroup>
+              {form.type === "transfer" ? (
+                <FieldGroup>
+                  <Label htmlFor="tx-transfer-account">To account</Label>
+                  <Select
+                    id="tx-transfer-account"
+                    value={form.transferAccountId}
+                    onChange={(e) =>
+                      setForm({ ...form, transferAccountId: e.target.value })
+                    }
+                  >
+                    <option value="">Select account</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldGroup>
+              ) : null}
             <FieldGroup>
               <Label htmlFor="tx-description">Description</Label>
               <Input
@@ -255,10 +322,15 @@ export default function TransactionsPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </FieldGroup>
-            <div className="sm:col-span-2 lg:col-span-3">
+            <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
               <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Add transaction"}
+                {saving ? "Saving..." : editId ? "Save changes" : "Add transaction"}
               </Button>
+              {editId ? (
+                <Button type="button" variant="outline" onClick={cancelEdit}>
+                  Cancel
+                </Button>
+              ) : null}
             </div>
           </form>
         </CardContent>
@@ -413,11 +485,20 @@ export default function TransactionsPage() {
                       <td className="py-2 pr-3">{t.description || "—"}</td>
                       <td className="py-2 pr-3 text-muted-foreground">
                         {t.account?.name ?? "—"}
+                        {t.type === "transfer" && t.transferAccount
+                          ? ` → ${t.transferAccount.name}`
+                          : ""}
                       </td>
-                      <td className="py-2 text-right">
+                      <td className="whitespace-nowrap py-2 text-right">
+                        <button
+                          onClick={() => startEdit(t)}
+                          className="text-xs font-medium text-foreground hover:underline"
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDelete(t.id)}
-                          className="text-xs font-medium text-destructive hover:underline"
+                          className="ml-3 text-xs font-medium text-destructive hover:underline"
                         >
                           Delete
                         </button>
