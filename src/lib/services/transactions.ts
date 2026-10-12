@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { toMinor } from "@/lib/money";
 import { zonedAt, periodKey } from "@/lib/dates";
-import { resolveCategoryFromText } from "@/lib/categories";
+import { DEFAULT_CATEGORIES, resolveCategoryFromText } from "@/lib/categories";
 import { logAudit } from "@/lib/audit";
 import { balanceForAccount } from "@/lib/ledger";
 import type { txCreateSchema } from "@/lib/validation";
@@ -12,7 +12,6 @@ export type TxInput = z.input<typeof txCreateSchema>;
 export const EXPENSE_TYPES = ["expense", "income", "transfer", "refund", "adjustment"] as const;
 
 export async function installDefaultCategories(userId: string): Promise<void> {
-  const { DEFAULT_CATEGORIES } = await import("@/lib/categories");
   const allowed = new Set(DEFAULT_CATEGORIES.map((c) => `${c.kind}:${c.name}`));
   const existing = await prisma.category.findMany({
     where: { userId },
@@ -70,20 +69,43 @@ async function resolveCategory(
     if (cat && !cat.archived) return cat.id;
     return null;
   }
-  const name =
-    categoryName ?? (description ? resolveCategoryFromText(description, kind)?.name : null);
-  if (!name) return null;
-  let cat = await prisma.category.findFirst({
-    where: { userId, name, kind },
+
+  const explicit = categoryName?.trim() ?? "";
+  const existing = await prisma.category.findMany({
+    where: { userId, kind },
+    select: { id: true, name: true, archived: true },
   });
-  if (!cat) {
-    const { DEFAULT_CATEGORIES } = await import("@/lib/categories");
+  const active = existing.filter((c) => !c.archived);
+  const findByName = (name: string) =>
+    active.find((c) => c.name.toLowerCase() === name.toLowerCase());
+
+  if (explicit) {
+    // 1. Exact (case-insensitive) match of an existing category.
+    const direct = findByName(explicit);
+    if (direct) return direct.id;
+
+    // 2. Canonicalise a free-form label onto a known category so the AI can
+    //    never fork a near-duplicate ("Food" -> "Food/Drink", "Health" ->
+    //    "Health Care", "Transport" -> "Taxi"). Description is used as a
+    //    tie-breaker when the label alone is ambiguous.
+    const canonical =
+      resolveCategoryFromText(explicit, kind)?.name ??
+      (description
+        ? resolveCategoryFromText(`${explicit} ${description}`, kind)?.name
+        : null);
+    if (canonical) {
+      const match = findByName(canonical);
+      if (match) return match.id;
+    }
+
+    // 3. Genuinely new category: create it once, using the canonical seed.
+    const name = canonical ?? explicit;
     const seed = DEFAULT_CATEGORIES.find((c) => c.name === name && c.kind === kind) ?? {
       name,
       kind,
       color: kind === "income" ? "#22c55e" : "#64748b",
     };
-    cat = await prisma.category.create({
+    const created = await prisma.category.create({
       data: {
         userId,
         name,
@@ -93,8 +115,17 @@ async function resolveCategory(
         isSystem: false,
       },
     });
+    return created.id;
   }
-  return cat.archived ? null : cat.id;
+
+  if (description) {
+    const canonical = resolveCategoryFromText(description, kind)?.name;
+    if (canonical) {
+      const match = findByName(canonical);
+      if (match) return match.id;
+    }
+  }
+  return null;
 }
 
 export async function createTransaction(userId: string, input: TxInput) {

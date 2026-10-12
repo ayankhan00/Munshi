@@ -8,22 +8,22 @@ export interface CategorySeed {
 export const DEFAULT_EXPENSE_CATEGORIES: CategorySeed[] = [
   { name: "Food/Drink", kind: "expense", color: "#f59e0b", icon: "utensils" },
   { name: "Groceries", kind: "expense", color: "#84cc16", icon: "shopping-cart" },
-  { name: "Taxi", kind: "expense", color: "#38bdf8", icon: "car-taxi-front" },
+  { name: "Transport", kind: "expense", color: "#38bdf8", icon: "car-taxi-front" },
   { name: "Car/Bike", kind: "expense", color: "#0ea5e9", icon: "car" },
   { name: "Fuel", kind: "expense", color: "#0284c7", icon: "fuel" },
   { name: "Utility Bills", kind: "expense", color: "#6366f1", icon: "receipt" },
-  { name: "Internet", kind: "expense", color: "#8b5cf6", icon: "wifi" },
   { name: "Rent", kind: "expense", color: "#fb7185", icon: "home" },
   { name: "House", kind: "expense", color: "#14b8a6", icon: "house" },
   { name: "Maid Salary", kind: "expense", color: "#f97316", icon: "users" },
-  { name: "Health Care", kind: "expense", color: "#f87171", icon: "heart-pulse" },
+  { name: "Health", kind: "expense", color: "#f87171", icon: "heart-pulse" },
   { name: "Education", kind: "expense", color: "#34d399", icon: "book-open" },
   { name: "Shopping", kind: "expense", color: "#ec4899", icon: "shopping-bag" },
   { name: "Clothes", kind: "expense", color: "#f472b6", icon: "shirt" },
   { name: "Entertainment", kind: "expense", color: "#d946ef", icon: "clapperboard" },
   { name: "Subscription", kind: "expense", color: "#a855f7", icon: "repeat" },
   { name: "Gym", kind: "expense", color: "#22c55e", icon: "dumbbell" },
-  { name: "Beauty/Haircut", kind: "expense", color: "#e879f9", icon: "scissors" },
+  { name: "Personal Care", kind: "expense", color: "#e879f9", icon: "scissors" },
+  { name: "Family/Kids", kind: "expense", color: "#fb923c", icon: "baby" },
   { name: "Vacation", kind: "expense", color: "#06b6d4", icon: "plane" },
   { name: "Pets", kind: "expense", color: "#d97706", icon: "paw-print" },
   { name: "Insurance", kind: "expense", color: "#64748b", icon: "shield" },
@@ -62,7 +62,7 @@ const EXPENSE_KEYWORDS: Record<string, string[]> = {
     "fruit", "fruits", "atta", "flour", "rice", "milk", "eggs", "bread", "ration",
     "daal", "dal", "masala", "cooking oil", "spices", "dry fruit",
   ],
-  Taxi: [
+  Transport: [
     "taxi", "uber", "careem", "indrive", "rickshaw", "rikshaw", "auto", "bus", "metro",
     "train", "fare", "ride", "cab", "transport", "commute", "daewoo", "van",
   ],
@@ -80,8 +80,6 @@ const EXPENSE_KEYWORDS: Record<string, string[]> = {
     "electricity", "electric", "bijli", "wapda", "k electric", "kelectric", "iesco",
     "lesco", "gesco", "mepco", "gas bill", "sui gas", "suigas", "ssgc", "sngpl",
     "water bill", "water", "phone bill", "mobile bill", "mobile", "phone", "recharge",
-  ],
-  Internet: [
     "internet", "internt", "wifi", "wi fi", "broadband", "fiber", "fibre", "ptcl",
     "net", "internet bill", "data package", "hotspot",
   ],
@@ -96,7 +94,7 @@ const EXPENSE_KEYWORDS: Record<string, string[]> = {
     "maid", "maids", "servant", "bai", "cook", "housekeeper", "aya", "nanny", "masi",
     "maid salary", "maasi",
   ],
-  "Health Care": [
+  Health: [
     "health", "health care", "healthcare", "medical", "medicine", "medicines", "doctor",
     "hospital", "clinic", "pharmacy", "dawa", "dawai", "checkup", "check up", "lab",
     "lab test", "dentist", "dental", "surgery", "treatment", "pharma", "vaccine",
@@ -129,10 +127,15 @@ const EXPENSE_KEYWORDS: Record<string, string[]> = {
     "gym", "fitness", "workout", "yoga", "trainer", "crossfit", "aerobics", "zumba",
     "weights", "dumbbell", "treadmill", "pilates", "gym fee",
   ],
-  "Beauty/Haircut": [
+  "Personal Care": [
     "beauty", "haircut", "hair cut", "salon", "parlour", "parlor", "barber", "spa",
     "facial", "makeup", "cosmetics", "groom", "pedicure", "manicure", "threading",
-    "waxing", "nails", "shave", "hair",
+    "waxing", "nails", "shave", "hair", "personal care", "skin care", "skincare",
+    "grooming", "hygiene",
+  ],
+  "Family/Kids": [
+    "family", "kids", "kid", "children", "child", "baby", "babies", "daycare",
+    "day care", "toys", "toy", "baby products", "diapers", "kindergarten",
   ],
   Vacation: [
     "vacation", "holiday", "holidays", "trip", "travel", "tour", "umrah", "hajj",
@@ -178,7 +181,8 @@ const INCOME_KEYWORDS: Record<string, string[]> = {
     "bank profit",
   ],
   "Other Income": [
-    "other income", "refund received", "cashback", "rebate", "misc income", "others income",
+    "other income", "others income", "refund received", "cashback", "rebate",
+    "misc income", "other", "others", "misc", "miscellaneous", "general",
   ],
 };
 

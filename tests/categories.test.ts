@@ -14,28 +14,28 @@ describe("category classifier", () => {
   });
 
   it("handles typos via fuzzy matching", () => {
-    expect(resolveCategoryFromText("3000 for internt", "expense")?.name).toBe("Internet");
+    expect(resolveCategoryFromText("3000 for internt", "expense")?.name).toBe("Utility Bills");
     expect(resolveCategoryFromText("dinner at restaurent", "expense")?.name).toBe("Food/Drink");
     expect(resolveCategoryFromText("groceris", "expense")?.name).toBe("Groceries");
     expect(resolveCategoryFromText("petorl", "expense")?.name).toBe("Fuel");
   });
 
-  it("maps ride-hailing to Taxi (Tax category removed)", () => {
-    expect(resolveCategoryFromText("2000 for uber", "expense")?.name).toBe("Taxi");
-    expect(resolveCategoryFromText("fare for taxi", "expense")?.name).toBe("Taxi");
+  it("maps ride-hailing to Transport", () => {
+    expect(resolveCategoryFromText("2000 for uber", "expense")?.name).toBe("Transport");
+    expect(resolveCategoryFromText("fare for taxi", "expense")?.name).toBe("Transport");
     expect(resolveCategoryFromText("paid income tax", "expense")).toBeNull();
   });
 
   it("maps bills, internet and fuel", () => {
     expect(resolveCategoryFromText("electricity bill", "expense")?.name).toBe("Utility Bills");
-    expect(resolveCategoryFromText("wifi bill", "expense")?.name).toBe("Internet");
+    expect(resolveCategoryFromText("wifi bill", "expense")?.name).toBe("Utility Bills");
     expect(resolveCategoryFromText("filled petrol", "expense")?.name).toBe("Fuel");
   });
 
   it("maps health, education and transport", () => {
-    expect(resolveCategoryFromText("doctor visit", "expense")?.name).toBe("Health Care");
+    expect(resolveCategoryFromText("doctor visit", "expense")?.name).toBe("Health");
     expect(resolveCategoryFromText("school fee", "expense")?.name).toBe("Education");
-    expect(resolveCategoryFromText("rickshaw fare", "expense")?.name).toBe("Taxi");
+    expect(resolveCategoryFromText("rickshaw fare", "expense")?.name).toBe("Transport");
   });
 
   it("is kind-aware for overlapping names like Gift", () => {
@@ -46,6 +46,15 @@ describe("category classifier", () => {
   it("maps income keywords", () => {
     expect(resolveCategoryFromText("received salary", "income")?.name).toBe("Salary");
     expect(resolveCategoryFromText("freelance project", "income")?.name).toBe("Freelance");
+  });
+
+  it("canonicalises bare AI-style labels onto seeded categories", () => {
+    expect(resolveCategoryFromText("Food", "expense")?.name).toBe("Food/Drink");
+    expect(resolveCategoryFromText("Health", "expense")?.name).toBe("Health");
+    expect(resolveCategoryFromText("Transport", "expense")?.name).toBe("Transport");
+    expect(resolveCategoryFromText("Personal Care", "expense")?.name).toBe("Personal Care");
+    expect(resolveCategoryFromText("Other", "expense")?.name).toBe("Others");
+    expect(resolveCategoryFromText("Other", "income")?.name).toBe("Other Income");
   });
 
   it("returns null for unrelated text", () => {

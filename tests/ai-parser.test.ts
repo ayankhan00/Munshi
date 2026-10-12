@@ -24,12 +24,12 @@ describe("ai parser", () => {
     }
   });
 
-  it("handles typos via fuzzy matching ('internt' -> Internet) and keeps description", () => {
+  it("handles typos via fuzzy matching ('internt' -> Utility Bills) and keeps description", () => {
     const intent = parseIntent("3000 for internt");
     expect(intent.kind).toBe("create_expense");
     if (intent.kind === "create_expense") {
       expect(intent.amount).toBe(3000);
-      expect(intent.categoryName).toBe("Internet");
+      expect(intent.categoryName).toBe("Utility Bills");
       expect(intent.description).toBe("internt");
     }
   });

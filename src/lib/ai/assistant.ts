@@ -93,7 +93,17 @@ export async function runAssistant(message: string, ctx: AssistantContext): Prom
   // Only the current message is ever sent to the model. Follow-ups and
   // corrections are resolved locally from the previous turn's stored intent.
   if (!followUp) {
-    const extraction = await extractWithGemini(message, [], { currency: ctx.currency });
+    // Give the model the user's real categories so it picks an existing one
+    // (exact name) instead of inventing near-duplicates like "Food".
+    const categories = await prisma.category.findMany({
+      where: { userId: ctx.userId, archived: false },
+      select: { name: true, kind: true },
+      orderBy: { name: "asc" },
+    });
+    const extraction = await extractWithGemini(message, [], {
+      currency: ctx.currency,
+      categories,
+    });
     if (extraction) {
       usedGemini = true;
       const geminiIntent = toIntent(extraction, message);

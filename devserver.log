@@ -186,3 +186,48 @@
  ✓ Compiled /api/dashboard in 478ms (786 modules)
  GET /api/dashboard 200 in 13949ms
  ✓ Compiled in 243ms (300 modules)
+ ✓ Compiled in 214ms (300 modules)
+ ✓ Compiled in 154ms (300 modules)
+ ✓ Compiled in 160ms (300 modules)
+ ✓ Compiled in 188ms (300 modules)
+ ✓ Compiled in 172ms (300 modules)
+ ✓ Compiled in 182ms (300 modules)
+ ✓ Compiled in 153ms (300 modules)
+ ✓ Compiled in 178ms (300 modules)
+ ✓ Compiled in 182ms (300 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 697ms (423 modules)
+ GET /login 200 in 1053ms
+ ✓ Compiled /api/auth/register in 94ms (461 modules)
+ POST /api/auth/register 201 in 7487ms
+ ✓ Compiled /api/assistant in 507ms (1089 modules)
+ POST /api/assistant 200 in 18284ms
+ POST /api/assistant 200 in 17539ms
+ ✓ Compiled /api/transactions in 115ms (484 modules)
+ GET /api/transactions?pageSize=50 200 in 5497ms
+ ✓ Compiled /api/categories in 89ms (486 modules)
+ GET /api/categories 200 in 4476ms
+ POST /api/auth/register 201 in 5857ms
+ POST /api/assistant 200 in 16463ms
+ POST /api/assistant 200 in 16780ms
+ GET /api/transactions?pageSize=50 200 in 4854ms
+ GET /api/categories 200 in 4295ms
+ ✓ Compiled in 234ms (300 modules)
+ ✓ Compiled in 188ms (300 modules)
+ ✓ Compiled in 185ms (300 modules)
+ ✓ Compiled in 170ms (300 modules)
+ ✓ Compiled in 382ms (300 modules)
+ ✓ Compiled in 204ms (300 modules)
+ ✓ Compiled in 256ms (300 modules)
+ ✓ Compiled /api/auth/register in 141ms (137 modules)
+ POST /api/auth/register 201 in 7442ms
+ ✓ Compiled /api/assistant in 194ms (482 modules)
+ POST /api/assistant 200 in 16780ms
+ ✓ Compiled /api/transactions in 73ms (484 modules)
+ GET /api/transactions?pageSize=50 200 in 5066ms
+ POST /api/assistant 200 in 16966ms
+ GET /api/transactions?pageSize=50 200 in 5090ms
+ POST /api/assistant 200 in 16909ms
+ GET /api/transactions?pageSize=50 200 in 4891ms
+ POST /api/assistant 200 in 16426ms
+ GET /api/transactions?pageSize=50 200 in 4895ms
