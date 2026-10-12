@@ -70,6 +70,14 @@ interface BudgetWarning {
   overspentMinor: number;
 }
 
+interface DashboardPayload {
+  me: Me;
+  report: DashboardReport;
+  tasks: { rows: TaskRow[] };
+  notifications: { rows: NotificationRow[] };
+  budgets: { rows: BudgetWarning[] };
+}
+
 function StatCard({
   label,
   value,
@@ -108,18 +116,14 @@ export default function DashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [meData, reportData, tasksData, notifData, budgetData] = await Promise.all([
-          api<Me>("/api/me"),
-          api<DashboardReport>("/api/reports"),
-          api<{ rows: TaskRow[] }>("/api/tasks?status=all&pageSize=5"),
-          api<{ rows: NotificationRow[]; unread: number }>("/api/notifications?limit=5"),
-          api<{ rows: BudgetWarning[] }>("/api/budgets"),
-        ]);
-        setMe(meData);
-        setReport(reportData);
-        setTasks(tasksData.rows);
-        setNotifications(notifData.rows);
-        setBudgets(budgetData.rows.filter((b) => b.percentUsed >= 80 || b.overspentMinor > 0));
+        const payload = await api<DashboardPayload>("/api/dashboard");
+        setMe(payload.me);
+        setReport(payload.report);
+        setTasks(payload.tasks.rows);
+        setNotifications(payload.notifications.rows);
+        setBudgets(
+          payload.budgets.rows.filter((b) => b.percentUsed >= 80 || b.overspentMinor > 0),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load dashboard");
       } finally {

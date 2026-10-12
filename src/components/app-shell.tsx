@@ -21,7 +21,7 @@ import {
   Tags,
   Bell,
 } from "lucide-react";
-import { api } from "@/lib/client-api";
+import { api, clearCache } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -74,6 +74,7 @@ export default function AppShell({
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      clearCache();
       router.push("/login");
     }
   }

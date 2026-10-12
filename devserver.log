@@ -165,3 +165,24 @@
  DELETE /api/notifications 200 in 2919ms
  ✓ Compiled /api/me in 103ms (485 modules)
  PUT /api/me 200 in 3247ms
+ ✓ Compiled in 388ms (300 modules)
+ ✓ Compiled in 174ms (300 modules)
+ ✓ Compiled in 167ms (300 modules)
+ ✓ Compiled in 168ms (300 modules)
+ ✓ Compiled in 164ms (300 modules)
+ ✓ Compiled in 294ms (300 modules)
+ ✓ Compiled in 233ms (300 modules)
+ ✓ Compiled /api/auth/register in 324ms (137 modules)
+ POST /api/auth/register 201 in 7262ms
+ ✓ Compiled /api/accounts in 264ms (472 modules)
+ GET /api/accounts 200 in 5131ms
+ ✓ Compiled /api/categories in 157ms (474 modules)
+ GET /api/categories 200 in 4149ms
+ ✓ Compiled /api/transactions in 193ms (476 modules)
+ POST /api/transactions 200 in 8665ms
+ POST /api/transactions 200 in 8934ms
+ ✓ Compiled /api/budgets in 199ms (479 modules)
+ POST /api/budgets 200 in 4881ms
+ ✓ Compiled /api/dashboard in 478ms (786 modules)
+ GET /api/dashboard 200 in 13949ms
+ ✓ Compiled in 243ms (300 modules)
