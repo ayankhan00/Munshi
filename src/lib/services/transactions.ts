@@ -9,8 +9,6 @@ import type { z } from "zod";
 
 export type TxInput = z.input<typeof txCreateSchema>;
 
-export const EXPENSE_TYPES = ["expense", "income", "transfer", "refund", "adjustment"] as const;
-
 export async function installDefaultCategories(userId: string): Promise<void> {
   const allowed = new Set(DEFAULT_CATEGORIES.map((c) => `${c.kind}:${c.name}`));
   const existing = await prisma.category.findMany({
@@ -439,44 +437,5 @@ export async function getCurrentBalance(userId: string) {
   };
 }
 
-export async function monthlySummary(
-  userId: string,
-  timezone: string,
-  startDay: number,
-  monthKeys: string[],
-) {
-  const { monthRange } = await import("@/lib/dates");
-  const firstKey = monthKeys[0];
-  const lastKey = monthKeys[monthKeys.length - 1];
-  const range = monthRange(
-    firstKey,
-    timezone,
-    startDay,
-  );
-  const lastRange = monthRange(lastKey, timezone, startDay);
-
-  const txns = await prisma.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      occurredAt: { gte: range.start, lt: lastRange.endExclusive },
-    },
-    include: { category: true },
-  });
-
-  const result = monthKeys.map((mk) => {
-    const r = monthRange(mk, timezone, startDay);
-    const inMonth = txns.filter((t) => t.occurredAt >= r.start && t.occurredAt < r.endExclusive);
-    let income = 0;
-    let expense = 0;
-    for (const t of inMonth) {
-      if (t.type === "income" || t.type === "refund") income += t.amountMinor;
-      if (t.type === "expense") expense += t.amountMinor;
-    }
-    return { monthKey: mk, incomeMinor: income, expenseMinor: expense };
-  });
-
-  return result;
-}
 
 export { periodKey };

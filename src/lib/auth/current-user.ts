@@ -50,9 +50,3 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     },
   });
 });
-
-export async function requireUser(): Promise<SessionUser> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("UNAUTHORIZED");
-  return user;
-}

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { createTransaction, getCurrentBalance } from "@/lib/services/transactions";
 import { categoryBreakdown } from "@/lib/services/reports";
-import { createTask, listTasks } from "@/lib/services/tasks";
+import { createTask } from "@/lib/services/tasks";
 import { createReminder } from "@/lib/services/reminders";
 import { currentMonthKey, formatDateTime, dateKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -245,17 +245,5 @@ async function executeReminder(
     intent: intent.kind,
     action: "reminder",
     data: result,
-  };
-}
-
-export async function agendaForUser(ctx: ExecutorContext) {
-  const rows = await listTasks(ctx.userId, { status: "pending", pageSize: 5 });
-  const first = rows.rows[0];
-  return {
-    reply: first
-      ? `You have ${rows.total} open tasks. Next: "${first.title}"${first.dueAt ? ` due ${formatDateTime(first.dueAt, ctx.timezone)}` : ""}.`
-      : "You have no pending tasks. Enjoy your day!",
-    intent: "query_tasks",
-    data: rows,
   };
 }

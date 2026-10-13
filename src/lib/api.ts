@@ -10,12 +10,6 @@ export class ApiError extends Error {
   }
 }
 
-export class NotFoundError extends ApiError {
-  constructor(message = "Not found") {
-    super(404, message);
-  }
-}
-
 export async function unwrapAsync<T>(fn: () => Promise<Response | T>): Promise<Response> {
   try {
     const result = await fn();

@@ -319,10 +319,3 @@ export function resolveCategoryFromText(
   }
   return null;
 }
-
-// Backwards-compatible flat alias map (alias substring -> category name).
-export const CATEGORY_ALIASES: Record<string, string> = Object.fromEntries(
-  Object.entries(EXPENSE_KEYWORDS).flatMap(([name, words]) =>
-    words.map((w) => [w, name] as const),
-  ),
-);

@@ -8,15 +8,6 @@ export function jsonError(message: string, status = 400): NextResponse {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
-export function zodError(error: { issues: { path: (string | number)[]; message: string }[] }): NextResponse {
-  const first = error.issues[0];
-  const path = first.path.join(".");
-  return jsonError(
-    first ? `${path ? path + ": " : ""}${first.message}` : "Invalid input",
-    422,
-  );
-}
-
 export function isAllowedOrigin(
   origin: string,
   opts: { url: string; host?: string | null; proto?: string | null; appUrl?: string | null },

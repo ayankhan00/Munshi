@@ -5,11 +5,6 @@ import {
   startOfDay,
 } from "date-fns";
 import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
-import { env } from "@/lib/env";
-
-export function tzOf(user?: { timezone?: string } | null): string {
-  return user?.timezone ?? env().defaultTz;
-}
 
 export function zonedAt(
   tz: string,
@@ -25,10 +20,6 @@ export function zonedAt(
   const h = String(hour).padStart(2, "0");
   const mi = String(minute).padStart(2, "0");
   return fromZonedTime(`${y}-${mo}-${d}T${h}:${mi}:00`, tz);
-}
-
-export function nowZoned(tz: string): Date {
-  return toZonedTime(new Date(), tz);
 }
 
 export function startOfDayZoned(date: Date, tz: string): Date {
@@ -63,14 +54,6 @@ export function formatDateTime(date: Date, tz: string): string {
 
 export function dateKey(date: Date, tz: string): string {
   return formatInTimeZone(date, tz, "yyyy-MM-dd");
-}
-
-export function formatDate(date: Date, tz: string): string {
-  return formatInTimeZone(date, tz, "MMM d, yyyy");
-}
-
-export function formatTime(date: Date, tz: string): string {
-  return formatInTimeZone(date, tz, "h:mm a");
 }
 
 const WEEKDAYS = [
@@ -267,8 +250,5 @@ export function parseNaturalDateTime(
   return null;
 }
 
-export function clampTransferToEndOfMonth(d: Date): Date {
-  return d;
-}
 
 export { fnAddDays, fnAddMonths, fnAddWeeks };

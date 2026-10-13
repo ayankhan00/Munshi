@@ -201,8 +201,3 @@ export const aiMessageSchema = z.object({
   message: z.string().trim().min(1).max(4000),
   sessionId: z.string().cuid().optional(),
 });
-
-export const confirmSchema = z.object({
-  confirmation: z.enum(["yes", "proceed", "confirm"]),
-  actionKey: z.string().min(1).max(200),
-});
