@@ -131,7 +131,7 @@ export default function CategoriesPage() {
         {list.map((c) => (
           <div
             key={c.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
+            className="rounded-lg border border-border p-3"
           >
             {editId === c.id ? (
               <div className="flex w-full flex-wrap items-end gap-2">
@@ -170,21 +170,23 @@ export default function CategoriesPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-3 w-3 rounded-full"
-                    style={{ backgroundColor: c.color }}
-                  />
-                  <span className="font-medium">{c.name}</span>
-                  {c.isSystem ? <Badge tone="muted">Built-in</Badge> : null}
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => archive(c.id)}>
-                    Archive
-                  </Button>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="inline-block h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: c.color }}
+                    />
+                    <span className="truncate font-medium">{c.name}</span>
+                    {c.isSystem ? <Badge tone="muted">Built-in</Badge> : null}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => archive(c.id)}>
+                      Archive
+                    </Button>
+                  </div>
                 </div>
               </>
             )}

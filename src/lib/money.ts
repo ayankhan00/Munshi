@@ -14,18 +14,37 @@ export function fromMinor(minor: number): number {
   return minor / MINOR_PER_UNIT;
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  PKR: "Rs",
+  INR: "Rs",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  AED: "AED",
+};
+
 export function formatMoney(
   minor: number,
   currency = "PKR",
   opts: { fractionDigits?: number } = {},
 ): string {
   const frac = opts.fractionDigits ?? 0;
+  const code = (currency || "PKR").toUpperCase();
+  const value = fromMinor(minor);
+  const symbol = CURRENCY_SYMBOLS[code];
+  if (symbol) {
+    const amount = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: frac,
+      maximumFractionDigits: frac,
+    }).format(value);
+    return `${symbol} ${amount}`;
+  }
   return new Intl.NumberFormat("en-PK", {
     style: "currency",
-    currency,
+    currency: code,
     minimumFractionDigits: frac,
     maximumFractionDigits: frac,
-  }).format(fromMinor(minor));
+  }).format(value);
 }
 
 const ONES: Record<string, number> = {

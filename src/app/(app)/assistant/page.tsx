@@ -9,6 +9,7 @@ import {
   Plus,
   Send,
   Sparkles,
+  Trash2,
   User as UserIcon,
   X,
 } from "lucide-react";
@@ -169,6 +170,21 @@ export default function AssistantPage() {
     setUsingGemini(false);
     window.localStorage.removeItem(SESSION_KEY);
     setShowHistory(false);
+  }
+
+  async function deleteSession(id: string) {
+    if (!window.confirm("Delete this conversation? This cannot be undone.")) return;
+    try {
+      await api(`/api/assistant?sessionId=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      setSessions((list) => list.filter((s) => s.id !== id));
+      if (sessionId === id) newChat();
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Failed to delete conversation",
+      );
+    }
   }
 
   async function send(text: string) {
@@ -417,22 +433,38 @@ export default function AssistantPage() {
               </p>
             ) : (
               sessions.map((s) => (
-                <button
+                <div
                   key={s.id}
-                  type="button"
-                  onClick={() => openSession(s.id)}
                   className={cn(
-                    "w-full rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted",
-                    s.id === sessionId
-                      ? "bg-muted font-medium"
-                      : "text-muted-foreground",
+                    "flex items-center gap-1 rounded-lg pr-1",
+                    s.id === sessionId ? "bg-muted" : "",
                   )}
                 >
-                  <span className="line-clamp-2">{s.title}</span>
-                  <span className="mt-0.5 block text-[11px] opacity-60">
-                    {timeAgo(s.updatedAt)}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => openSession(s.id)}
+                    className={cn(
+                      "min-w-0 flex-1 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted",
+                      s.id === sessionId
+                        ? "font-medium"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    <span className="line-clamp-2">{s.title}</span>
+                    <span className="mt-0.5 block text-[11px] opacity-60">
+                      {timeAgo(s.updatedAt)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteSession(s.id)}
+                    className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Delete conversation ${s.title}`}
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ))
             )}
           </div>

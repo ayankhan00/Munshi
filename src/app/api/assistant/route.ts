@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { unwrapAsync, requireApiUser } from "@/lib/api";
+import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { aiMessageSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
 import { runAssistant, createAiSession } from "@/lib/ai/assistant";
@@ -84,5 +84,19 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
     return { sessions };
+  });
+}
+
+export async function DELETE(request: NextRequest) {
+  return unwrapAsync(async () => {
+    const user = await requireApiUser();
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get("sessionId");
+    if (!sessionId) throw new ApiError(422, "sessionId is required");
+    const result = await prisma.aiSession.deleteMany({
+      where: { id: sessionId, userId: user.id },
+    });
+    if (result.count === 0) throw new ApiError(404, "Conversation not found");
+    return { deleted: true };
   });
 }

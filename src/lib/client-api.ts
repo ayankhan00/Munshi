@@ -161,11 +161,4 @@ export async function api<T = unknown>(
   return data;
 }
 
-export function formatMoney(minor: number, currency = "PKR"): string {
-  return new Intl.NumberFormat("en-PK", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(minor / 100);
-}
+export { formatMoney } from "@/lib/money";

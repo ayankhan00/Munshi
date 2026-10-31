@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { api } from "@/lib/client-api";
+import { api, clearCache } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
@@ -205,6 +205,27 @@ export default function SettingsPage() {
       router.push("/login");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleClearData() {
+    if (
+      !window.confirm(
+        "Permanently delete all transactions, accounts, budgets, tasks, reminders, categories and chats?\n\nYour profile, login and settings are kept. This cannot be undone.",
+      )
+    )
+      return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await api("/api/me/clear", { method: "POST" });
+      clearCache();
+      setMessage("All financial data cleared. Your profile and settings were kept.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear data");
     } finally {
       setSaving(false);
     }
@@ -469,14 +490,25 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Danger zone</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Deleting your account permanently removes all transactions, tasks, reminders
-            and settings. This cannot be undone.
-          </p>
-          <Button variant="danger" onClick={handleDeleteAccount} disabled={saving}>
-            Delete account
-          </Button>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Clear data permanently removes all transactions, accounts, budgets, tasks,
+              reminders, categories and chats. Your profile, login and settings are kept.
+            </p>
+            <Button variant="outline" onClick={handleClearData} disabled={saving}>
+              Clear all data
+            </Button>
+          </div>
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              Deleting your account permanently removes everything, including your
+              profile. This cannot be undone.
+            </p>
+            <Button variant="danger" onClick={handleDeleteAccount} disabled={saving}>
+              Delete account
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
