@@ -63,6 +63,14 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 export default function AssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -217,9 +225,12 @@ export default function AssistantPage() {
       pendingFinalRef.current = "";
       setInput("");
       try {
-        recognition.stop();
+        recognition.abort();
       } catch {
         // already stopped
+      }
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
       }
       if (text) void send(text);
     }, VOICE_SEND_DELAY_MS);
@@ -236,11 +247,14 @@ export default function AssistantPage() {
       voiceTextRef.current = "";
       pendingFinalRef.current = "";
       setInput("");
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
       try {
-        recognitionRef.current?.stop();
+        rec?.abort();
       } catch {
         // already stopped
       }
+      setListening(false);
       if (text) void send(text);
       return;
     }
@@ -252,7 +266,9 @@ export default function AssistantPage() {
     const recognition = new Ctor();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.continuous = true;
+    // iOS Safari does not handle continuous mode well and can leave the
+    // audio session open, which makes the next start() silently fail.
+    recognition.continuous = !isIOS();
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => setListening(true);
@@ -274,11 +290,28 @@ export default function AssistantPage() {
       setInput(combined);
       scheduleVoiceSend(recognition);
     };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
+    recognition.onerror = (event) => {
+      const error = event.error;
+      if (error !== "no-speech" && error !== "aborted") {
+        console.warn("[speech] recognition error:", error);
+      }
+      setListening(false);
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+      setListening(false);
+    };
 
     recognitionRef.current = recognition;
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (err) {
+      recognitionRef.current = null;
+      setListening(false);
+      console.warn("[speech] could not start recognition:", err);
+    }
   }
 
   return (
