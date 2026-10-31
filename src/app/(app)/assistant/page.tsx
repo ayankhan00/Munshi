@@ -41,6 +41,7 @@ interface SessionMessage {
 
 const SESSION_KEY = "munshi:assistantSessionId";
 const VOICE_SEND_DELAY_MS = 1000;
+const IOS_RESTART_DELAY_MS = 300;
 
 const SUGGESTIONS = [
   "Add expense 500 for lunch",
@@ -86,7 +87,7 @@ export default function AssistantPage() {
   const pendingFinalRef = useRef("");
   const voiceTextRef = useRef("");
   const voiceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const voiceCommittedRef = useRef(false);
+  const wantListeningRef = useRef(false);
   const sendingRef = useRef(false);
 
   useEffect(() => {
@@ -215,15 +216,21 @@ export default function AssistantPage() {
     }
   }
 
+  function sendVoiceText() {
+    const text = voiceTextRef.current.trim();
+    voiceTextRef.current = "";
+    pendingFinalRef.current = "";
+    setInput("");
+    if (text) void send(text);
+  }
+
   function scheduleVoiceSend(recognition: SpeechRecognition) {
+    // iOS sends from onend instead; see startRecognition().
+    if (isIOS()) return;
     clearVoiceTimer();
     voiceTimerRef.current = setTimeout(() => {
       voiceTimerRef.current = null;
-      voiceCommittedRef.current = true;
-      const text = voiceTextRef.current.trim();
-      voiceTextRef.current = "";
-      pendingFinalRef.current = "";
-      setInput("");
+      wantListeningRef.current = false;
       try {
         recognition.abort();
       } catch {
@@ -232,48 +239,24 @@ export default function AssistantPage() {
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
-      if (text) void send(text);
+      setListening(false);
+      sendVoiceText();
     }, VOICE_SEND_DELAY_MS);
   }
 
-  function toggleListening() {
-    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    if (!Ctor) return;
-
-    if (listening) {
-      clearVoiceTimer();
-      voiceCommittedRef.current = true;
-      const text = voiceTextRef.current.trim();
-      voiceTextRef.current = "";
-      pendingFinalRef.current = "";
-      setInput("");
-      const rec = recognitionRef.current;
-      recognitionRef.current = null;
-      try {
-        rec?.abort();
-      } catch {
-        // already stopped
-      }
-      setListening(false);
-      if (text) void send(text);
-      return;
-    }
-
-    voiceCommittedRef.current = false;
-    pendingFinalRef.current = "";
-    voiceTextRef.current = "";
-
-    const recognition = new Ctor();
+  function startRecognition(RecognitionCtor: SpeechRecognitionStatic) {
+    const recognition = new RecognitionCtor();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    // iOS Safari does not handle continuous mode well and can leave the
-    // audio session open, which makes the next start() silently fail.
+    // Every browser on iOS runs on WebKit, whose continuous mode silently
+    // stops delivering results. Use one-shot recognition there and restart on
+    // every onend so the audio session never goes idle.
     recognition.continuous = !isIOS();
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => setListening(true);
+
     recognition.onresult = (event) => {
-      if (voiceCommittedRef.current) return;
       let interim = "";
       let final = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -290,18 +273,34 @@ export default function AssistantPage() {
       setInput(combined);
       scheduleVoiceSend(recognition);
     };
+
     recognition.onerror = (event) => {
       const error = event.error;
       if (error !== "no-speech" && error !== "aborted") {
         console.warn("[speech] recognition error:", error);
       }
-      setListening(false);
+      if (error === "not-allowed" || error === "service-not-allowed") {
+        wantListeningRef.current = false;
+        setListening(false);
+      }
     };
+
     recognition.onend = () => {
       if (recognitionRef.current === recognition) {
         recognitionRef.current = null;
       }
-      setListening(false);
+      if (!wantListeningRef.current) {
+        setListening(false);
+        return;
+      }
+      // Restart to keep WebKit's audio session active. If it deactivates, the
+      // next start() captures no audio at all (WebKit bug 317741).
+      if (isIOS()) sendVoiceText();
+      window.setTimeout(() => {
+        if (wantListeningRef.current && !recognitionRef.current) {
+          startRecognition(RecognitionCtor);
+        }
+      }, isIOS() ? IOS_RESTART_DELAY_MS : 0);
     };
 
     recognitionRef.current = recognition;
@@ -309,16 +308,43 @@ export default function AssistantPage() {
       recognition.start();
     } catch (err) {
       recognitionRef.current = null;
+      wantListeningRef.current = false;
       setListening(false);
       console.warn("[speech] could not start recognition:", err);
     }
+  }
+
+  function toggleListening() {
+    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    if (wantListeningRef.current) {
+      wantListeningRef.current = false;
+      clearVoiceTimer();
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
+      try {
+        rec?.abort();
+      } catch {
+        // already stopped
+      }
+      setListening(false);
+      sendVoiceText();
+      return;
+    }
+
+    pendingFinalRef.current = "";
+    voiceTextRef.current = "";
+    setInput("");
+    wantListeningRef.current = true;
+    startRecognition(Ctor);
   }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col space-y-4">
       <PageHeader
         title="AI Assistant"
-        description="Ask in plain English (or Urdu) to log money, check balances, create tasks and set reminders. Tap the mic and speak, e.g. 2750 on burgers."
+        description="Ask in plain English (or Urdu) to log money, check balances, create tasks and set reminders. Tap the mic and speak (tap again to stop), e.g. 2750 on burgers."
       >
         <Button
           type="button"
