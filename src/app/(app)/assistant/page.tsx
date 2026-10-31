@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -82,6 +83,7 @@ export default function AssistantPage() {
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const pendingFinalRef = useRef("");
@@ -102,11 +104,15 @@ export default function AssistantPage() {
 
   useEffect(() => {
     void (async () => {
-      const list = await loadSessions();
-      const saved = window.localStorage.getItem(SESSION_KEY);
-      if (saved && (await openSession(saved))) return;
-      if (saved) window.localStorage.removeItem(SESSION_KEY);
-      if (list.length > 0) await openSession(list[0].id);
+      try {
+        const list = await loadSessions();
+        const saved = window.localStorage.getItem(SESSION_KEY);
+        if (saved && (await openSession(saved))) return;
+        if (saved) window.localStorage.removeItem(SESSION_KEY);
+        if (list.length > 0) await openSession(list[0].id);
+      } finally {
+        setBootstrapping(false);
+      }
     })();
   }, []);
 
@@ -167,7 +173,7 @@ export default function AssistantPage() {
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || sendingRef.current) return;
+    if (!trimmed || sendingRef.current || bootstrapping) return;
     sendingRef.current = true;
     setMessages((m) => [...m, { role: "user", content: trimmed }]);
     setInput("");
@@ -315,6 +321,7 @@ export default function AssistantPage() {
   }
 
   function toggleListening() {
+    if (bootstrapping) return;
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) return;
 
@@ -433,7 +440,9 @@ export default function AssistantPage() {
 
         <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-4 overflow-y-auto p-5">
-            {messages.length === 0 ? (
+            {bootstrapping ? (
+              <LoadingState label="Loading your conversation..." />
+            ) : messages.length === 0 ? (
               <div className="mx-auto max-w-lg py-6 text-center">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Bot className="h-6 w-6" />
@@ -511,7 +520,14 @@ export default function AssistantPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={listening ? "Listening..." : "Type a message..."}
+              placeholder={
+                bootstrapping
+                  ? "Loading..."
+                  : listening
+                    ? "Listening..."
+                    : "Type a message..."
+              }
+              disabled={bootstrapping}
               className="flex-1"
             />
             {voiceSupported ? (
@@ -520,7 +536,7 @@ export default function AssistantPage() {
                 variant={listening ? "danger" : "outline"}
                 size="icon"
                 onClick={toggleListening}
-                disabled={loading}
+                disabled={loading || bootstrapping}
                 aria-label={listening ? "Stop voice input" : "Start voice input"}
                 title={listening ? "Stop listening" : "Speak your transaction"}
               >
@@ -531,7 +547,7 @@ export default function AssistantPage() {
                 )}
               </Button>
             ) : null}
-            <Button type="submit" disabled={loading || !input.trim()}>
+            <Button type="submit" disabled={loading || bootstrapping || !input.trim()}>
               <Send className="h-4 w-4" />
               <span className="hidden sm:inline">Send</span>
             </Button>
