@@ -32,6 +32,7 @@ interface Me {
   quietHoursStart: number | null;
   quietHoursEnd: number | null;
   theme: string;
+  lastLoginAt?: string | null;
 }
 
 const TIMEZONES = [
@@ -259,6 +260,19 @@ export default function SettingsPage() {
             <FieldGroup>
               <Label htmlFor="s-email">Email</Label>
               <Input id="s-email" type="email" value={me.email} disabled />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="s-lastlogin">Last login</Label>
+              <Input
+                id="s-lastlogin"
+                type="text"
+                value={
+                  me.lastLoginAt
+                    ? new Date(me.lastLoginAt).toLocaleString()
+                    : "—"
+                }
+                disabled
+              />
             </FieldGroup>
             <FieldGroup>
               <Label htmlFor="s-currency">Currency</Label>

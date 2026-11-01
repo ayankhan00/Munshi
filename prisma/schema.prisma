@@ -19,6 +19,7 @@ model User {
   name                  String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  lastLoginAt           DateTime?
 
   // Finance settings
   currency              String   @default("PKR")

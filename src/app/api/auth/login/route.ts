@@ -35,6 +35,10 @@ export async function POST(request: NextRequest) {
     return jsonError("Invalid email or password.", 401);
   }
 
+  await prisma.user
+    .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    .catch(() => null);
+
   const token = await createSession(user.id, request.headers.get("user-agent") ?? undefined);
   const res = jsonOk({ user: { id: user.id, email: user.email } });
   setSessionCookie(res, token);

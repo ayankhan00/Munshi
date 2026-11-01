@@ -26,6 +26,7 @@ export async function GET(_request: NextRequest) {
         quietHoursEnd: true,
         theme: true,
         demoMode: true,
+        lastLoginAt: true,
       },
     });
     return profile;

@@ -4,103 +4,16 @@
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 12.3s
+ ✓ Ready in 2.8s
  ○ Compiling /login ...
-(node:24316) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(node:26052) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled /login in 12.7s (686 modules)
- GET /login 200 in 13420ms
+ ✓ Compiled /login in 2.4s (686 modules)
+ GET /login 200 in 2998ms
  ○ Compiling /api/auth/register ...
- ✓ Compiled /api/auth/register in 714ms (725 modules)
- POST /api/auth/register 201 in 8505ms
- ○ Compiling /api/assistant/voice ...
- ✓ Compiled /api/assistant/voice in 2.5s (1053 modules)
- POST /api/assistant/voice 200 in 27763ms
- ✓ Compiled /api/assistant in 280ms (1055 modules)
- POST /api/assistant 200 in 16047ms
- ✓ Compiled /api/transactions in 213ms (735 modules)
- GET /api/transactions?pageSize=10 200 in 5126ms
- ✓ Compiled in 180ms (263 modules)
- ✓ Compiled in 190ms (263 modules)
- ✓ Compiled in 542ms (263 modules)
- ✓ Compiled in 197ms (263 modules)
- ✓ Compiled in 144ms (263 modules)
- ✓ Compiled in 129ms (263 modules)
- ✓ Compiled in 141ms (263 modules)
- ✓ Compiled in 136ms (263 modules)
- ✓ Compiled in 139ms (263 modules)
- ✓ Compiled in 122ms (263 modules)
- ✓ Compiled in 124ms (263 modules)
- ✓ Compiled in 137ms (263 modules)
- ✓ Compiled in 138ms (263 modules)
- ✓ Compiled in 179ms (263 modules)
- ✓ Compiled in 142ms (263 modules)
- ✓ Compiled in 128ms (263 modules)
- ✓ Compiled in 163ms (263 modules)
- ✓ Compiled in 170ms (263 modules)
- ✓ Compiled in 136ms (263 modules)
- ✓ Compiled in 122ms (263 modules)
- ✓ Compiled in 125ms (263 modules)
- ✓ Compiled in 115ms (263 modules)
- ✓ Compiled in 145ms (263 modules)
- ✓ Compiled in 123ms (263 modules)
- ✓ Compiled in 118ms (263 modules)
- ✓ Compiled in 128ms (263 modules)
- ✓ Compiled in 138ms (263 modules)
- ✓ Compiled in 142ms (263 modules)
- ✓ Compiled in 137ms (263 modules)
- ✓ Compiled in 227ms (263 modules)
- ✓ Compiled in 160ms (263 modules)
- ✓ Compiled in 167ms (263 modules)
- ✓ Compiled in 174ms (263 modules)
- ✓ Compiled in 164ms (263 modules)
- ✓ Compiled in 152ms (263 modules)
- ✓ Compiled in 164ms (263 modules)
- ✓ Compiled /login in 288ms (424 modules)
- GET /login 200 in 788ms
- ✓ Compiled /api/auth/register in 247ms (462 modules)
- POST /api/auth/register 201 in 8137ms
- ✓ Compiled /api/assistant/voice in 445ms (1067 modules)
- POST /api/assistant/voice 200 in 20075ms
- POST /api/assistant/voice 200 in 20061ms
- POST /api/assistant/voice 200 in 18125ms
- ✓ Compiled /api/transactions in 130ms (481 modules)
- GET /api/transactions?pageSize=20 200 in 5457ms
- ✓ Compiled in 226ms (263 modules)
- ✓ Compiled in 143ms (263 modules)
- ✓ Compiled in 148ms (263 modules)
- ✓ Compiled in 148ms (263 modules)
- ✓ Compiled in 137ms (263 modules)
- ✓ Compiled in 130ms (263 modules)
- ✓ Compiled in 123ms (263 modules)
- ✓ Compiled in 131ms (263 modules)
- ✓ Compiled /api/auth/register in 143ms (137 modules)
- POST /api/auth/register 201 in 6685ms
- ✓ Compiled /api/transactions in 95ms (472 modules)
- POST /api/transactions 200 in 9097ms
- POST /api/transactions 200 in 9016ms
- ✓ Compiled /api/reports in 445ms (738 modules)
- GET /api/reports?kind=breakdown&days=7 200 in 3786ms
- GET /api/reports?kind=breakdown&days=30 200 in 3248ms
- ✓ Compiled in 221ms (263 modules)
- ✓ Compiled in 177ms (263 modules)
- ✓ Compiled in 152ms (263 modules)
- ✓ Compiled in 164ms (263 modules)
- ✓ Compiled in 192ms (263 modules)
- ✓ Compiled /api/auth/register in 131ms (137 modules)
- POST /api/auth/register 201 in 7373ms
- ✓ Compiled /api/assistant/voice in 505ms (482 modules)
- POST /api/assistant/voice 200 in 18453ms
- POST /api/assistant/voice 200 in 18743ms
- ✓ Compiled /api/transactions in 99ms (484 modules)
- GET /api/transactions?pageSize=20 200 in 5083ms
- ✓ Compiled in 297ms (263 modules)
- ✓ Compiled in 205ms (263 modules)
- ✓ Compiled in 158ms (263 modules)
- ✓ Compiled in 148ms (263 modules)
- ✓ Compiled in 178ms (263 modules)
- ✓ Compiled in 187ms (263 modules)
- ✓ Compiled /api/auth/register in 209ms (137 modules)
- POST /api/auth/register 422 in 334ms
- POST /api/auth/register 422 in 20ms
- POST /api/auth/register 201 in 7163ms
+ ✓ Compiled /api/auth/register in 769ms (725 modules)
+ POST /api/auth/register 201 in 7379ms
+ ✓ Compiled /api/auth/login in 301ms (713 modules)
+ POST /api/auth/login 200 in 2945ms
+ ✓ Compiled /api/me in 261ms (722 modules)
+ GET /api/me 200 in 3270ms

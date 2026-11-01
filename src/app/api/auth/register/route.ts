@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       passwordHash: hashPassword(password),
       name: name || null,
       openingBalanceMinor: 0,
+      lastLoginAt: new Date(),
     },
   });
 
