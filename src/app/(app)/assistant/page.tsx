@@ -43,7 +43,7 @@ interface SessionMessage {
 
 const SESSION_KEY = "munshi:assistantSessionId";
 const VOICE_SILENCE_MS = 1200;
-const VOICE_MAX_RECORD_MS = 12000;
+const VOICE_MAX_RECORD_MS = 30000;
 const VOICE_SPEECH_RMS = 0.01;
 
 const SUGGESTIONS = [
@@ -125,6 +125,7 @@ export default function AssistantPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [usingGemini, setUsingGemini] = useState(false);
   const [listening, setListening] = useState(false);
+  const [levels, setLevels] = useState<number[]>(() => Array(20).fill(0));
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
@@ -401,6 +402,7 @@ export default function AssistantPage() {
 
       chunksRef.current = [];
       heardSpeechRef.current = false;
+      setLevels(Array(20).fill(0));
       processor.onaudioprocess = (event) => {
         if (!recordingRef.current) return;
         const input = event.inputBuffer.getChannelData(0);
@@ -408,6 +410,7 @@ export default function AssistantPage() {
         let sum = 0;
         for (let i = 0; i < input.length; i += 1) sum += input[i] * input[i];
         const rms = Math.sqrt(sum / input.length);
+        setLevels((prev) => [...prev.slice(1), Math.min(1, rms * 5)]);
         if (rms > VOICE_SPEECH_RMS) {
           heardSpeechRef.current = true;
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -630,10 +633,24 @@ export default function AssistantPage() {
             <div ref={bottomRef} />
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-border p-3"
-          >
+          <div className="border-t border-border">
+            {listening ? (
+              <div className="flex items-center gap-3 px-4 pt-3 text-muted-foreground">
+                <div className="flex h-5 w-24 items-end gap-0.5" aria-hidden="true">
+                  {levels.map((level, index) => (
+                    <span
+                      key={index}
+                      className="w-1 flex-1 rounded-full bg-primary/70 transition-[height] duration-75"
+                      style={{ height: `${Math.max(10, level * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs">
+                  Listening… speak now, tap the mic to stop
+                </span>
+              </div>
+            ) : null}
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 p-3">
             <Input
               type="text"
               value={input}
@@ -670,6 +687,7 @@ export default function AssistantPage() {
               <span className="hidden sm:inline">Send</span>
             </Button>
           </form>
+          </div>
         </Card>
       </div>
     </div>

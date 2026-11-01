@@ -137,17 +137,41 @@ function actionToIntent(action: GeminiAction, raw: string): ParsedIntent | null 
   }
 }
 
+const CORRECTION_RE =
+  /\b(instead|actually|change|correct|update|fix|mistake|wrong|should be|make it|rather|not)\b/i;
+
 function intentsFromPlan(
   plan: { actions: GeminiAction[] } | null,
   message: string,
   history: ChatHistoryTurn[] | undefined,
 ): { intents: ParsedIntent[]; usedGemini: boolean } {
-  const fromActions = (plan?.actions ?? [])
-    .map((action) => actionToIntent(action, message))
-    .filter((intent): intent is ParsedIntent => intent !== null);
+  const intents: ParsedIntent[] = [];
+  const seen = new Set<string>();
+  for (const action of plan?.actions ?? []) {
+    const intent = actionToIntent(action, message);
+    if (!intent) continue;
+    const key = JSON.stringify(intent);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    intents.push(intent);
+  }
 
-  if (fromActions.length > 0) {
-    return { intents: fromActions, usedGemini: true };
+  if (intents.length > 0) {
+    const hasCreate = intents.some(
+      (i) => i.kind === "create_expense" || i.kind === "create_income",
+    );
+    const hasUpdate = intents.some((i) => i.kind === "update_transaction");
+    if (hasCreate && hasUpdate) {
+      // A single utterance should not both create and modify. Treat it as a
+      // correction only when the user clearly asked to change something.
+      return {
+        intents: CORRECTION_RE.test(message)
+          ? intents.filter((i) => i.kind === "update_transaction")
+          : intents.filter((i) => i.kind !== "update_transaction"),
+        usedGemini: true,
+      };
+    }
+    return { intents, usedGemini: true };
   }
 
   return {

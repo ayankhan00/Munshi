@@ -87,6 +87,12 @@ ${JSON.stringify(recent)}`
 Rules:
 - The user may ask for MULTIPLE things at once, e.g. "I spent 2700 on fuel and 1200 on burger".
   Return one action per distinct item (two create_expense actions in that example). Never merge them.
+- A plain statement of new spending or income is ALWAYS a create_expense/create_income, even if a
+  similar transaction already exists in the recent list. Do NOT return an update for it.
+- Only use update_transaction when the user explicitly asks to change/correct an earlier entry
+  (words like "instead", "actually", "change", "correct", "make it", "fix", "not ...").
+- Never return both a create action and an update action for the same item, and never repeat an
+  action. Each distinct item appears exactly once.
 - Money the user RECEIVES is income: got, received, earned, credited, deposit, salary, mila, aya, آمد.
 - Money the user SPENDS or PAYS OUT is expense: spent, paid, bought, purchased, kharcha, خرچ.
 - amount is a number in major units (NOT paisa). If the user repeats the same number while speaking,
