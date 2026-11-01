@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { aiMessageSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
-import { runAssistant, createAiSession } from "@/lib/ai/assistant";
+import { runAssistant, createAiSession, persistTurn } from "@/lib/ai/assistant";
 
 export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
@@ -43,15 +43,7 @@ export async function POST(request: NextRequest) {
       history,
     });
 
-    await prisma.aiMessage.create({
-      data: {
-        userId: user.id,
-        sessionId,
-        role: "assistant",
-        content: result.reply,
-        intent: result.intent,
-      },
-    }).catch(() => null);
+    await persistTurn(user.id, sessionId, parsed.message, result);
 
     await prisma.aiSession
       .update({ where: { id: sessionId }, data: { updatedAt: new Date() } })

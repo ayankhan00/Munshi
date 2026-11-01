@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
-import { extractAmountInfo, type AmountInfo } from "@/lib/money";
-import { parseIntentWithContext, isFollowUpMessage, type ChatHistoryTurn } from "./parser";
-import { extractWithGemini, type GeminiExtraction } from "./gemini";
+import { parseIntentWithContext, type ChatHistoryTurn } from "./parser";
+import { planWithGemini, type GeminiAction, type RecentTransaction } from "./gemini";
 import { executeIntent, type ExecutorContext, type ExecutorResult } from "./executor";
 import type { ParsedIntent } from "./types";
 
@@ -22,119 +21,228 @@ export interface AssistantResult {
   sessionId?: string;
 }
 
-const ALLOWED_KINDS = new Set([
-  "create_expense",
-  "create_income",
-  "create_transfer",
-  "query_balance",
-  "query_spending",
-  "query_income",
-  "create_task",
-  "create_reminder",
-  "help",
-  "unknown",
-]);
-
-// The model must never be the source of truth for an amount. When the message
-// contains a spoken compound number (e.g. "500 73" from "five hundred and
-// seventy three"), the deterministic parser's summed value wins over the model.
-function preferDeterministicAmount(
-  geminiIntent: ParsedIntent,
-  amount: AmountInfo,
-): ParsedIntent {
-  if (!amount.compound || typeof amount.value !== "number") {
-    return geminiIntent;
-  }
-  switch (geminiIntent.kind) {
-    case "create_expense":
-    case "create_income":
-    case "create_transfer":
-      return { ...geminiIntent, amount: amount.value };
-    default:
-      return geminiIntent;
-  }
-}
-
-function toIntent(extraction: GeminiExtraction, raw: string): ParsedIntent {
-  const base = { raw };
-  if (!ALLOWED_KINDS.has(extraction.kind)) {
-    return { kind: "unknown", ...base };
-  }
-  switch (extraction.kind) {
-    case "create_expense":
-      return { kind: "create_expense", amount: extraction.amount, categoryName: extraction.categoryName, description: extraction.description, date: extraction.date, ...base };
-    case "create_income":
-      return { kind: "create_income", amount: extraction.amount, categoryName: extraction.categoryName, description: extraction.description, date: extraction.date, ...base };
-    case "create_transfer":
-      return { kind: "create_transfer", amount: extraction.amount, fromAccount: extraction.fromAccount, toAccount: extraction.toAccount, ...base };
-    case "query_balance":
-      return { kind: "query_balance", ...base };
-    case "query_spending":
-      return { kind: "query_spending", period: extraction.period, ...base };
-    case "query_income":
-      return { kind: "query_income", period: extraction.period, ...base };
-    case "create_task":
-      return { kind: "create_task", title: extraction.title, due: extraction.due, priority: extraction.priority, ...base };
-    case "create_reminder":
-      return { kind: "create_reminder", title: extraction.title, remind: extraction.remind, ...base };
-    case "help":
-      return { kind: "help", ...base };
-    default:
-      return { kind: "unknown", ...base };
-  }
-}
-
-export async function runAssistant(message: string, ctx: AssistantContext): Promise<AssistantResult> {
-  let usedGemini = false;
-  const history = ctx.history ?? [];
-  const followUp = isFollowUpMessage(message, history);
-  let intent: ParsedIntent = parseIntentWithContext(message, history);
-
-  // Only the current message is ever sent to the model. Follow-ups and
-  // corrections are resolved locally from the previous turn's stored intent.
-  if (!followUp) {
-    // Give the model the user's real categories so it picks an existing one
-    // (exact name) instead of inventing near-duplicates like "Food".
-    const categories = await prisma.category.findMany({
-      where: { userId: ctx.userId, archived: false },
+async function loadContext(userId: string): Promise<{
+  categories: { name: string; kind: string }[];
+  recent: RecentTransaction[];
+}> {
+  const [categories, recent] = await Promise.all([
+    prisma.category.findMany({
+      where: { userId, archived: false },
       select: { name: true, kind: true },
       orderBy: { name: "asc" },
-    });
-    const extraction = await extractWithGemini(message, [], {
-      currency: ctx.currency,
-      categories,
-    });
-    if (extraction) {
-      usedGemini = true;
-      const geminiIntent = toIntent(extraction, message);
-      if (geminiIntent.kind !== "unknown" || intent.kind === "unknown") {
-        intent = preferDeterministicAmount(geminiIntent, extractAmountInfo(message));
-      }
-    }
-  }
+    }),
+    prisma.transaction.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { occurredAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        amountMinor: true,
+        type: true,
+        description: true,
+        occurredAt: true,
+        category: { select: { name: true } },
+      },
+    }),
+  ]);
 
-  const result = await executeIntent(intent, ctx);
-
-  const payload = {
-    sessionId: ctx.sessionId ?? "",
-    userId: ctx.userId,
-    role: "user" as const,
-    content: message,
-    intent: intent.kind,
-    payload: JSON.stringify({ usedGemini }),
+  return {
+    categories,
+    recent: recent.map((t) => ({
+      id: t.id,
+      amount: t.amountMinor / 100,
+      type: t.type,
+      category: t.category?.name ?? "",
+      description: t.description ?? "",
+      date: t.occurredAt.toISOString().slice(0, 10),
+    })),
   };
-  if (ctx.sessionId) {
-    await prisma.aiMessage.create({ data: payload }).catch(() => null);
+}
+
+function normalizeActionType(type: string): string {
+  const value = (type ?? "").toLowerCase().trim();
+  if (value === "expense" || value === "spend") return "create_expense";
+  if (value === "income") return "create_income";
+  if (value === "transfer") return "create_transfer";
+  if (value === "update" || value === "edit" || value === "modify") {
+    return "update_transaction";
+  }
+  return value;
+}
+
+function actionToIntent(action: GeminiAction, raw: string): ParsedIntent | null {
+  const kind = normalizeActionType(action.type);
+  switch (kind) {
+    case "create_expense":
+      return {
+        kind: "create_expense",
+        amount: action.amount,
+        categoryName: action.categoryName,
+        description: action.description,
+        date: action.date,
+        raw,
+      };
+    case "create_income":
+      return {
+        kind: "create_income",
+        amount: action.amount,
+        categoryName: action.categoryName,
+        description: action.description,
+        date: action.date,
+        raw,
+      };
+    case "create_transfer":
+      return {
+        kind: "create_transfer",
+        amount: action.amount,
+        fromAccount: action.fromAccount,
+        toAccount: action.toAccount,
+        raw,
+      };
+    case "query_balance":
+      return { kind: "query_balance", raw };
+    case "query_spending":
+      return { kind: "query_spending", period: action.period, raw };
+    case "query_income":
+      return { kind: "query_income", period: action.period, raw };
+    case "create_task":
+      return {
+        kind: "create_task",
+        title: action.title,
+        due: action.due,
+        priority: action.priority,
+        raw,
+      };
+    case "create_reminder":
+      return {
+        kind: "create_reminder",
+        title: action.title,
+        remind: action.remind,
+        raw,
+      };
+    case "update_transaction":
+      return {
+        kind: "update_transaction",
+        targetTransactionId: action.targetTransactionId,
+        amount: action.changes?.amount ?? action.amount,
+        categoryName: action.changes?.categoryName ?? action.categoryName,
+        description: action.changes?.description ?? action.description,
+        date: action.changes?.date ?? action.date,
+        raw,
+      };
+    case "help":
+      return { kind: "help", raw };
+    default:
+      return null;
+  }
+}
+
+function intentsFromPlan(
+  plan: { actions: GeminiAction[] } | null,
+  message: string,
+  history: ChatHistoryTurn[] | undefined,
+): { intents: ParsedIntent[]; usedGemini: boolean } {
+  const fromActions = (plan?.actions ?? [])
+    .map((action) => actionToIntent(action, message))
+    .filter((intent): intent is ParsedIntent => intent !== null);
+
+  if (fromActions.length > 0) {
+    return { intents: fromActions, usedGemini: true };
   }
 
   return {
-    reply: result.reply,
-    intent: result.intent,
-    action: result.action,
-    data: result.data,
-    usedGemini,
-    sessionId: ctx.sessionId,
+    intents: [parseIntentWithContext(message, history ?? [])],
+    usedGemini: false,
   };
+}
+
+async function executeIntents(
+  intents: ParsedIntent[],
+  ctx: ExecutorContext,
+): Promise<Omit<AssistantResult, "usedGemini" | "sessionId">> {
+  const results: ExecutorResult[] = [];
+  for (const intent of intents) {
+    try {
+      results.push(await executeIntent(intent, ctx));
+    } catch (err) {
+      results.push({
+        reply: err instanceof Error ? err.message : "Something went wrong.",
+        intent: intent.kind,
+      });
+    }
+  }
+
+  const reply = results.map((r) => r.reply).join("\n\n");
+  const single = results.length === 1;
+  return {
+    reply,
+    intent: single ? results[0]?.intent ?? "unknown" : "multi",
+    action: single ? results[0]?.action : undefined,
+    data: single ? results[0]?.data : results.map((r) => r.data),
+  };
+}
+
+export async function runAssistant(
+  message: string,
+  ctx: AssistantContext,
+): Promise<AssistantResult> {
+  const { categories, recent } = await loadContext(ctx.userId);
+  const plan = await planWithGemini(
+    { text: message },
+    { currency: ctx.currency, categories, recentTransactions: recent },
+  );
+  const { intents, usedGemini } = intentsFromPlan(plan, message, ctx.history);
+  const result = await executeIntents(intents, ctx);
+  return { ...result, usedGemini, sessionId: ctx.sessionId };
+}
+
+export async function runVoiceAssistant(
+  audio: { mimeType: string; data: string },
+  ctx: AssistantContext,
+): Promise<AssistantResult & { transcript: string }> {
+  const { categories, recent } = await loadContext(ctx.userId);
+  const plan = await planWithGemini(
+    { audio },
+    { currency: ctx.currency, categories, recentTransactions: recent },
+  );
+  const transcript = (plan?.transcript ?? "").trim();
+  if (!transcript) {
+    throw new Error("Could not hear anything. Please try again.");
+  }
+  const { intents, usedGemini } = intentsFromPlan(plan, transcript, ctx.history);
+  const result = await executeIntents(intents, ctx);
+  return { ...result, usedGemini, sessionId: ctx.sessionId, transcript };
+}
+
+export async function persistTurn(
+  userId: string,
+  sessionId: string,
+  userText: string,
+  result: AssistantResult,
+): Promise<void> {
+  await prisma.aiMessage
+    .create({
+      data: {
+        userId,
+        sessionId,
+        role: "user",
+        content: userText,
+        intent: result.intent,
+        payload: JSON.stringify({ usedGemini: result.usedGemini }),
+      },
+    })
+    .catch(() => null);
+  await prisma.aiMessage
+    .create({
+      data: {
+        userId,
+        sessionId,
+        role: "assistant",
+        content: result.reply,
+        intent: result.intent,
+      },
+    })
+    .catch(() => null);
 }
 
 export async function createAiSession(userId: string, firstMessage: string) {

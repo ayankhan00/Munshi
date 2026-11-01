@@ -7,6 +7,7 @@ export type IntentKind =
   | "query_income"
   | "create_task"
   | "create_reminder"
+  | "update_transaction"
   | "help"
   | "unknown";
 
@@ -62,6 +63,15 @@ export interface CreateReminderIntent extends BaseIntent {
   remind?: string;
 }
 
+export interface UpdateTransactionIntent extends BaseIntent {
+  kind: "update_transaction";
+  targetTransactionId?: string;
+  amount?: number;
+  categoryName?: string;
+  description?: string;
+  date?: string;
+}
+
 export interface HelpIntent extends BaseIntent {
   kind: "help";
 }
@@ -78,5 +88,6 @@ export type ParsedIntent =
   | QuerySpendingIntent
   | CreateTaskIntent
   | CreateReminderIntent
+  | UpdateTransactionIntent
   | HelpIntent
   | UnknownIntent;

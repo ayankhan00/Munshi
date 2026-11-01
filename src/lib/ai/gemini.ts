@@ -8,24 +8,31 @@ interface GeminiResponse {
   }[];
 }
 
-export interface GeminiExtraction {
-  kind: string;
+export interface GeminiAction {
+  type: string;
   amount?: number;
   categoryName?: string;
   description?: string;
   date?: string;
+  fromAccount?: string;
+  toAccount?: string;
   title?: string;
   due?: string;
   remind?: string;
   priority?: string;
-  fromAccount?: string;
-  toAccount?: string;
   period?: string;
+  targetTransactionId?: string;
+  changes?: {
+    amount?: number;
+    categoryName?: string;
+    description?: string;
+    date?: string;
+  };
 }
 
-export interface GeminiTurn {
-  role: "user" | "model";
-  text: string;
+export interface GeminiPlan {
+  transcript?: string;
+  actions: GeminiAction[];
 }
 
 interface CategoryOption {
@@ -33,88 +40,117 @@ interface CategoryOption {
   kind: string;
 }
 
-function buildSystemPrompt(currency: string, categories?: CategoryOption[]): string {
-  const expenseCategories = (categories ?? [])
+export interface RecentTransaction {
+  id: string;
+  amount: number;
+  type: string;
+  category: string;
+  description: string;
+  date: string;
+}
+
+interface PlanOptions {
+  currency?: string;
+  categories?: CategoryOption[];
+  recentTransactions?: RecentTransaction[];
+}
+
+function buildSystemPrompt(
+  currency: string,
+  categories: CategoryOption[] = [],
+  recent: RecentTransaction[] = [],
+): string {
+  const expenseCategories = categories
     .filter((c) => c.kind === "expense")
     .map((c) => c.name);
-  const incomeCategories = (categories ?? [])
+  const incomeCategories = categories
     .filter((c) => c.kind === "income")
     .map((c) => c.name);
 
   const categoryList =
     expenseCategories.length > 0 || incomeCategories.length > 0
-      ? `\nThe user's existing categories are:
+      ? `The user's existing categories are:
 - Expense: ${expenseCategories.join(", ") || "(none)"}
-- Income: ${incomeCategories.join(", ") || "(none)"}
-`
-      : `\nTypical categories:
+- Income: ${incomeCategories.join(", ") || "(none)"}`
+      : `Typical categories:
 - Expense: Food/Drink, Groceries, Transport, Car/Bike, Fuel, Utility Bills, Rent, House, Maid Salary, Health, Education, Shopping, Clothes, Entertainment, Subscription, Gym, Personal Care, Family/Kids, Vacation, Pets, Insurance, Loan, Donation, Gift, Others
-- Income: Salary, Freelance, Business, Gift, Interest, Other Income
-`;
+- Income: Salary, Freelance, Business, Gift, Interest, Other Income`;
 
-  return `You are Munshi, a personal finance assistant intent extractor.
-Read the conversation so far and the latest user message, then output the user's
-intent as ONLY valid JSON (no markdown, no prose).
+  const recentList = recent.length
+    ? `The user's ${recent.length} most recent transactions (newest first) as JSON:
+${JSON.stringify(recent)}`
+    : "The user has no recent transactions.";
+
+  return `You are Munshi, a personal finance assistant. Read the user's message (or the attached audio) and return ONLY valid JSON with this shape:
+{"transcript":"<exact words the user said>","actions":[<one or more actions>]}
 
 Rules:
-- Money the user RECEIVES is income: got, received, earned, credited, deposit,
-  salary, "mila", "aya", "rekha", آمد. Example: "I got 20 from Abdullah" =>
-  {"kind":"create_income","amount":20,"description":"Abdullah"}.
-- Money the user SPENDS or PAYS OUT is expense: spent, paid, bought, purchased,
-  lent/gave to someone, kharcha, خرچ. Example: "gave my brother 500" =>
-  {"kind":"create_expense","amount":500,"description":"brother"}.
-- The user's currency is ${currency}. amount is a number in major units.
-- categoryName MUST be copied VERBATIM from the user's existing categories in
-  the list below. Never invent, translate, shorten or pluralise a category name,
-  and never combine two names. Pick the single best-fitting existing category.
-  If none fits, omit categoryName entirely.
+- The user may ask for MULTIPLE things at once, e.g. "I spent 2700 on fuel and 1200 on burger".
+  Return one action per distinct item (two create_expense actions in that example). Never merge them.
+- Money the user RECEIVES is income: got, received, earned, credited, deposit, salary, mila, aya, آمد.
+- Money the user SPENDS or PAYS OUT is expense: spent, paid, bought, purchased, kharcha, خرچ.
+- amount is a number in major units (NOT paisa). If the user repeats the same number while speaking,
+  treat it as one amount, not a sum.
+- categoryName MUST be copied VERBATIM from the user's existing categories below. Never invent,
+  translate or pluralise a category name. If none fits, omit categoryName.
+- date/due/remind use plain English like "today", "tomorrow", "6pm", "next monday".
+- To modify an earlier transaction ("instead of 1200", "make it 1500", "change the last one",
+  "not burger, it was petrol"), return ONE action:
+  {"type":"update_transaction","targetTransactionId":"<id from the recent list>","changes":{"amount":1500}}
+  Use only ids from the recent list. NEVER invent a targetTransactionId.
+- "transcript" must be the exact words the user said (for audio) or the message (for text).
+- Output no markdown and no prose.
+
 ${categoryList}
-- Use the conversation to resolve follow-ups and corrections. If the latest
-  message only changes part of the previous transaction (e.g. "make it 600",
-  "from Ahmed instead", "actually that was income"), return the FULL corrected
-  intent (all fields, not just the change).
 
-JSON shapes:
-For expense: {"kind":"create_expense","amount":500,"categoryName":"Food/Drink","description":"lunch","date":"today"}
-For income: {"kind":"create_income","amount":150000,"categoryName":"Salary","description":"salary","date":"today"}
-For transfer: {"kind":"create_transfer","amount":1000,"fromAccount":"Cash","toAccount":"Bank"}
-For balance: {"kind":"query_balance"}
-For spending: {"kind":"query_spending"}
-For income query: {"kind":"query_income"}
-For task: {"kind":"create_task","title":"pay bill","due":"tomorrow","priority":"high"}
-For reminder: {"kind":"create_reminder","title":"call mom","remind":"6pm"}
-For help: {"kind":"help"}
-Anything else: {"kind":"unknown"}
+${recentList}
 
-Date/due/remind use plain English like "today", "tomorrow", "6pm", "next monday".`;
+Action shapes:
+- Expense: {"type":"create_expense","amount":500,"categoryName":"Food/Drink","description":"lunch","date":"today"}
+- Income: {"type":"create_income","amount":150000,"categoryName":"Salary","description":"salary","date":"today"}
+- Transfer: {"type":"create_transfer","amount":1000,"fromAccount":"Cash","toAccount":"Bank"}
+- Balance: {"type":"query_balance"}
+- Spending: {"type":"query_spending"}
+- Income query: {"type":"query_income"}
+- Task: {"type":"create_task","title":"pay bill","due":"tomorrow","priority":"high"}
+- Reminder: {"type":"create_reminder","title":"call mom","remind":"6pm"}
+- Update: {"type":"update_transaction","targetTransactionId":"...","changes":{"amount":1500,"description":"burgers"}}
+- Help: {"type":"help"}
+If nothing applies: {"transcript":"...","actions":[{"type":"unknown"}]}`;
 }
 
-export async function extractWithGemini(
-  query: string,
-  history: GeminiTurn[] = [],
-  opts: { currency?: string; categories?: CategoryOption[] } = {},
-): Promise<GeminiExtraction | null> {
+export async function planWithGemini(
+  input: { text?: string; audio?: { mimeType: string; data: string } },
+  opts: PlanOptions = {},
+): Promise<GeminiPlan | null> {
   const apiKey = env().geminiApiKey;
   if (!apiKey) return null;
 
   const model = env().geminiModel;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const cleanHistory = history
-    .filter((t) => t.text && t.text.trim().length > 0)
-    .slice(-4);
-  const firstUser = cleanHistory.findIndex((t) => t.role === "user");
-  const turns = firstUser === -1 ? [] : cleanHistory.slice(firstUser);
-
-  const contents = [
-    ...turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
-    { role: "user", parts: [{ text: query }] },
-  ];
+  const parts: unknown[] = [];
+  if (input.audio) {
+    parts.push({ text: "Transcribe this audio and extract the user's finance actions." });
+    parts.push({ inlineData: input.audio });
+  } else {
+    parts.push({ text: input.text ?? "" });
+  }
 
   const payload = {
-    systemInstruction: { parts: [{ text: buildSystemPrompt(opts.currency ?? "PKR", opts.categories) }] },
-    contents,
-    generationConfig: { temperature: 0.1, maxOutputTokens: 300 },
+    systemInstruction: {
+      parts: [
+        {
+          text: buildSystemPrompt(
+            opts.currency ?? "PKR",
+            opts.categories,
+            opts.recentTransactions,
+          ),
+        },
+      ],
+    },
+    contents: [{ role: "user", parts }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 800 },
   };
 
   try {
@@ -128,7 +164,9 @@ export async function extractWithGemini(
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
-    return JSON.parse(match[0]) as GeminiExtraction;
+    const parsed = JSON.parse(match[0]) as GeminiPlan;
+    if (!Array.isArray(parsed.actions)) return null;
+    return parsed;
   } catch {
     return null;
   }

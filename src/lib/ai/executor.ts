@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { createTransaction, getCurrentBalance } from "@/lib/services/transactions";
+import { createTransaction, getCurrentBalance, updateTransaction, type TxInput } from "@/lib/services/transactions";
 import { categoryBreakdown } from "@/lib/services/reports";
 import { createTask } from "@/lib/services/tasks";
 import { createReminder } from "@/lib/services/reminders";
@@ -39,6 +39,8 @@ export async function executeIntent(intent: ParsedIntent, ctx: ExecutorContext):
       return executeTask(intent, ctx);
     case "create_reminder":
       return executeReminder(intent, ctx);
+    case "update_transaction":
+      return executeUpdate(intent, ctx);
     case "help":
       return {
         reply: "I can help you with:\n" +
@@ -186,6 +188,40 @@ async function executeTransfer(
   const tx = result.transaction as { amountMinor: number };
   return {
     reply: `Transferred ${formatMoney(tx.amountMinor, ctx.currency)}.`,
+    intent: intent.kind,
+    action: "transaction",
+    data: result,
+  };
+}
+
+async function executeUpdate(
+  intent: Extract<ParsedIntent, { kind: "update_transaction" }>,
+  ctx: ExecutorContext,
+): Promise<ExecutorResult> {
+  if (!intent.targetTransactionId) {
+    return {
+      reply: "I couldn't tell which transaction you want to change. Please say it again.",
+      intent: intent.kind,
+    };
+  }
+
+  const patch: Partial<TxInput> = {};
+  if (typeof intent.amount === "number") patch.amount = intent.amount;
+  if (intent.categoryName) patch.categoryName = intent.categoryName;
+  if (intent.description) patch.description = intent.description;
+  if (intent.date) {
+    const mapped = intentMappedDate(intent.date, ctx.timezone);
+    if (mapped) patch.date = mapped;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return { reply: "What should I change on that transaction?", intent: intent.kind };
+  }
+
+  const result = await updateTransaction(ctx.userId, intent.targetTransactionId, patch);
+  const tx = result.transaction as { amountMinor: number; description?: string | null };
+  return {
+    reply: `Updated: ${formatMoney(tx.amountMinor, ctx.currency)}${tx.description ? ` for ${tx.description}` : ""}.`,
     intent: intent.kind,
     action: "transaction",
     data: result,

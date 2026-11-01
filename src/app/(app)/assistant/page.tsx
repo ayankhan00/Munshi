@@ -42,8 +42,9 @@ interface SessionMessage {
 }
 
 const SESSION_KEY = "munshi:assistantSessionId";
-const VOICE_SEND_DELAY_MS = 1000;
-const IOS_RESTART_DELAY_MS = 300;
+const VOICE_SILENCE_MS = 1200;
+const VOICE_MAX_RECORD_MS = 12000;
+const VOICE_SPEECH_RMS = 0.01;
 
 const SUGGESTIONS = [
   "Add expense 500 for lunch",
@@ -66,12 +67,54 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function isIOS(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
+function concatAudio(chunks: Float32Array[]): Float32Array {
+  let total = 0;
+  for (const chunk of chunks) total += chunk.length;
+  const merged = new Float32Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return merged;
+}
+
+function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeString = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i += 1) {
+      view.setUint8(offset + i, value.charCodeAt(i));
+    }
+  };
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i += 1, offset += 2) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(binary);
 }
 
 export default function AssistantPage() {
@@ -86,21 +129,35 @@ export default function AssistantPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const pendingFinalRef = useRef("");
-  const voiceTextRef = useRef("");
-  const voiceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wantListeningRef = useRef(false);
   const sendingRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const chunksRef = useRef<Float32Array[]>([]);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heardSpeechRef = useRef(false);
+  const recordingRef = useRef(false);
+  const cleanupRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
   useEffect(() => {
+    const AudioCtor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
     setVoiceSupported(
-      Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition),
+      typeof AudioCtor === "function" &&
+        typeof navigator.mediaDevices?.getUserMedia === "function",
     );
+  }, []);
+
+  cleanupRef.current = cleanupRecorder;
+  useEffect(() => {
+    return () => cleanupRef.current();
   }, []);
 
   useEffect(() => {
@@ -231,136 +288,165 @@ export default function AssistantPage() {
     send(input);
   }
 
-  function clearVoiceTimer() {
-    if (voiceTimerRef.current) {
-      clearTimeout(voiceTimerRef.current);
-      voiceTimerRef.current = null;
+  function cleanupRecorder() {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (maxTimerRef.current) {
+      clearTimeout(maxTimerRef.current);
+      maxTimerRef.current = null;
+    }
+    try {
+      processorRef.current?.disconnect();
+    } catch {
+      // already disconnected
+    }
+    processorRef.current = null;
+    try {
+      void audioCtxRef.current?.close();
+    } catch {
+      // already closed
+    }
+    audioCtxRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    chunksRef.current = [];
+    recordingRef.current = false;
+  }
+
+  async function stopRecordingAndTranscribe() {
+    if (!recordingRef.current) return;
+    const sampleRate = audioCtxRef.current?.sampleRate ?? 44100;
+    const chunks = chunksRef.current.slice();
+    const heardSpeech = heardSpeechRef.current;
+    cleanupRecorder();
+    setListening(false);
+    if (!heardSpeech || chunks.length === 0) {
+      setInput("");
+      return;
+    }
+
+    const bytes = new Uint8Array(
+      await encodeWav(concatAudio(chunks), sampleRate).arrayBuffer(),
+    );
+    setLoading(true);
+    try {
+      const res = await api<{
+        transcript: string;
+        reply: string;
+        intent: string;
+        usedGemini: boolean;
+        sessionId: string;
+      }>("/api/assistant/voice", {
+        method: "POST",
+        body: JSON.stringify({
+          audio: toBase64(bytes),
+          mimeType: "audio/wav",
+          sessionId,
+        }),
+      });
+      const transcript = res.transcript.trim();
+      if (transcript) {
+        setMessages((m) => [...m, { role: "user", content: transcript }]);
+      }
+      setSessionId(res.sessionId);
+      setUsingGemini(res.usedGemini);
+      window.localStorage.setItem(SESSION_KEY, res.sessionId);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: res.reply, intent: res.intent },
+      ]);
+      void loadSessions();
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            err instanceof Error ? err.message : "Could not process your voice.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
   }
 
-  function sendVoiceText() {
-    const text = voiceTextRef.current.trim();
-    voiceTextRef.current = "";
-    pendingFinalRef.current = "";
-    setInput("");
-    if (text) void send(text);
-  }
-
-  function scheduleVoiceSend(recognition: SpeechRecognition) {
-    // iOS sends from onend instead; see startRecognition().
-    if (isIOS()) return;
-    clearVoiceTimer();
-    voiceTimerRef.current = setTimeout(() => {
-      voiceTimerRef.current = null;
-      wantListeningRef.current = false;
-      try {
-        recognition.abort();
-      } catch {
-        // already stopped
+  async function startRecording() {
+    if (recordingRef.current) return;
+    recordingRef.current = true;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Voice recording needs HTTPS and a supported browser.");
       }
-      if (recognitionRef.current === recognition) {
-        recognitionRef.current = null;
-      }
-      setListening(false);
-      sendVoiceText();
-    }, VOICE_SEND_DELAY_MS);
-  }
-
-  function startRecognition(RecognitionCtor: SpeechRecognitionStatic) {
-    const recognition = new RecognitionCtor();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    // Every browser on iOS runs on WebKit, whose continuous mode silently
-    // stops delivering results. Use one-shot recognition there and restart on
-    // every onend so the audio session never goes idle.
-    recognition.continuous = !isIOS();
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => setListening(true);
-
-    recognition.onresult = (event) => {
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = result[0]?.transcript ?? "";
-        if (result.isFinal) final += transcript;
-        else interim += transcript;
-      }
-      if (final) {
-        pendingFinalRef.current = `${pendingFinalRef.current} ${final}`.trim();
-      }
-      const combined = `${pendingFinalRef.current} ${interim}`.trim();
-      voiceTextRef.current = combined;
-      setInput(combined);
-      scheduleVoiceSend(recognition);
-    };
-
-    recognition.onerror = (event) => {
-      const error = event.error;
-      if (error !== "no-speech" && error !== "aborted") {
-        console.warn("[speech] recognition error:", error);
-      }
-      if (error === "not-allowed" || error === "service-not-allowed") {
-        wantListeningRef.current = false;
-        setListening(false);
-      }
-    };
-
-    recognition.onend = () => {
-      if (recognitionRef.current === recognition) {
-        recognitionRef.current = null;
-      }
-      if (!wantListeningRef.current) {
-        setListening(false);
+      const AudioCtor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioCtor) throw new Error("Audio recording is not supported here.");
+      // Create/resume the AudioContext inside the tap gesture; iOS blocks it
+      // otherwise and the recorder would capture nothing.
+      const ctx = new AudioCtor();
+      audioCtxRef.current = ctx;
+      if (ctx.state === "suspended") await ctx.resume();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!recordingRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
-      // Restart to keep WebKit's audio session active. If it deactivates, the
-      // next start() captures no audio at all (WebKit bug 317741).
-      if (isIOS()) sendVoiceText();
-      window.setTimeout(() => {
-        if (wantListeningRef.current && !recognitionRef.current) {
-          startRecognition(RecognitionCtor);
-        }
-      }, isIOS() ? IOS_RESTART_DELAY_MS : 0);
-    };
+      const source = ctx.createMediaStreamSource(stream);
+      const processor = ctx.createScriptProcessor(4096, 1, 1);
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
 
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
+      chunksRef.current = [];
+      heardSpeechRef.current = false;
+      processor.onaudioprocess = (event) => {
+        if (!recordingRef.current) return;
+        const input = event.inputBuffer.getChannelData(0);
+        chunksRef.current.push(new Float32Array(input));
+        let sum = 0;
+        for (let i = 0; i < input.length; i += 1) sum += input[i] * input[i];
+        const rms = Math.sqrt(sum / input.length);
+        if (rms > VOICE_SPEECH_RMS) {
+          heardSpeechRef.current = true;
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            void stopRecordingAndTranscribe();
+          }, VOICE_SILENCE_MS);
+        }
+      };
+      source.connect(processor);
+      processor.connect(gain);
+      gain.connect(ctx.destination);
+
+      streamRef.current = stream;
+      processorRef.current = processor;
+      setListening(true);
+      maxTimerRef.current = setTimeout(() => {
+        void stopRecordingAndTranscribe();
+      }, VOICE_MAX_RECORD_MS);
     } catch (err) {
-      recognitionRef.current = null;
-      wantListeningRef.current = false;
+      cleanupRecorder();
       setListening(false);
-      console.warn("[speech] could not start recognition:", err);
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            err instanceof Error ? err.message : "Microphone access was denied.",
+        },
+      ]);
     }
   }
 
   function toggleListening() {
     if (bootstrapping) return;
-    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    if (!Ctor) return;
-
-    if (wantListeningRef.current) {
-      wantListeningRef.current = false;
-      clearVoiceTimer();
-      const rec = recognitionRef.current;
-      recognitionRef.current = null;
-      try {
-        rec?.abort();
-      } catch {
-        // already stopped
-      }
-      setListening(false);
-      sendVoiceText();
-      return;
+    if (recordingRef.current) {
+      void stopRecordingAndTranscribe();
+    } else {
+      void startRecording();
     }
-
-    pendingFinalRef.current = "";
-    voiceTextRef.current = "";
-    setInput("");
-    wantListeningRef.current = true;
-    startRecognition(Ctor);
   }
 
   return (
