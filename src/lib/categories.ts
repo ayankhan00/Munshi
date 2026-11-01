@@ -152,6 +152,7 @@ const EXPENSE_KEYWORDS: Record<string, string[]> = {
   Loan: [
     "loan", "loans", "emi", "installment", "instalment", "qist", "qistain", "debt",
     "mortgage", "qarz", "karza", "credit card payment", "installment",
+    "lent", "lend", "loaned", "lent out", "loan out", "gave to", "advance to",
   ],
   Donation: [
     "donation", "donate", "charity", "zakat", "sadaqah", "sadqa", "fitra", "khairat",

@@ -126,6 +126,38 @@ async function resolveCategory(
   return null;
 }
 
+async function fallbackCategoryId(
+  userId: string,
+  kind: "income" | "expense",
+): Promise<string> {
+  const name = kind === "income" ? "Other Income" : "Others";
+  const existing = await prisma.category.findFirst({
+    where: { userId, kind, name: { equals: name, mode: "insensitive" } },
+    select: { id: true, archived: true },
+  });
+  if (existing) {
+    if (existing.archived) {
+      await prisma.category.update({
+        where: { id: existing.id },
+        data: { archived: false },
+      });
+    }
+    return existing.id;
+  }
+  const seed = DEFAULT_CATEGORIES.find((c) => c.name === name && c.kind === kind);
+  const created = await prisma.category.create({
+    data: {
+      userId,
+      name,
+      kind,
+      color: seed?.color ?? (kind === "income" ? "#22c55e" : "#64748b"),
+      icon: seed?.icon,
+      isSystem: false,
+    },
+  });
+  return created.id;
+}
+
 export async function createTransaction(userId: string, input: TxInput) {
   if (input.idempotencyKey) {
     const existing = await prisma.transaction.findUnique({
@@ -165,6 +197,10 @@ export async function createTransaction(userId: string, input: TxInput) {
       input.categoryName,
       input.description,
     );
+    // Every expense/income must belong to a category so reports stay useful.
+    if (!categoryId) {
+      categoryId = await fallbackCategoryId(userId, input.type);
+    }
   }
 
   if (input.type === "refund") {

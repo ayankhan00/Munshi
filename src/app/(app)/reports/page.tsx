@@ -122,6 +122,9 @@ export default function ReportsPage() {
   const [range, setRange] = useState("7");
   const [trend, setTrend] = useState<Trend | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
+  const [rangeBreakdown, setRangeBreakdown] = useState<
+    ReportOverview["breakdown"] | null
+  >(null);
 
   const [savings, setSavings] = useState<SavingsPoint[]>([]);
   const [rangeFrom, setRangeFrom] = useState(() => {
@@ -151,6 +154,17 @@ export default function ReportsPage() {
       setError(err instanceof Error ? err.message : "Failed to load trend");
     } finally {
       setTrendLoading(false);
+    }
+  }, []);
+
+  const loadBreakdown = useCallback(async (days: number) => {
+    try {
+      const result = await api<ReportOverview["breakdown"]>(
+        `/api/reports?kind=breakdown&days=${days}`,
+      );
+      setRangeBreakdown(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load breakdown");
     }
   }, []);
 
@@ -193,17 +207,20 @@ export default function ReportsPage() {
   }, [load, month]);
 
   useEffect(() => {
-    void loadTrend(7);
-  }, [loadTrend]);
+    const days = RANGES.find((r) => r.value === range)?.days ?? 7;
+    void loadTrend(days);
+    void loadBreakdown(days);
+  }, [range, loadTrend, loadBreakdown]);
 
   useEffect(() => {
     void loadSavings();
   }, [loadSavings]);
 
-  const income = data?.breakdown.totalIncomeMinor ?? 0;
-  const expense = data?.breakdown.totalExpenseMinor ?? 0;
+  const breakdown = rangeBreakdown ?? data?.breakdown;
+  const income = breakdown?.totalIncomeMinor ?? 0;
+  const expense = breakdown?.totalExpenseMinor ?? 0;
   const net = income - expense;
-  const categories = data?.breakdown.categories ?? [];
+  const categories = breakdown?.categories ?? [];
   const hasData = income > 0 || expense > 0;
 
   const activeRange = RANGES.find((r) => r.value === range) ?? RANGES[0];
@@ -340,10 +357,7 @@ export default function ReportsPage() {
                     <button
                       key={r.value}
                       type="button"
-                      onClick={() => {
-                        setRange(r.value);
-                        void loadTrend(r.days);
-                      }}
+                      onClick={() => setRange(r.value)}
                       className={cn(
                         "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                         range === r.value

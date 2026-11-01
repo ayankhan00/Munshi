@@ -10,7 +10,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
 
+function passwordProblem(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters.";
+  if (!/[a-z]/.test(password)) return "Add at least one lowercase letter.";
+  if (!/[A-Z]/.test(password)) return "Add at least one uppercase letter.";
+  if (!/[0-9]/.test(password)) return "Add at least one number.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Add at least one special character.";
+  return null;
+}
+
 export default function SignupPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -31,15 +41,16 @@ export default function SignupPage() {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      setError(pwProblem);
       return;
     }
     setLoading(true);
     try {
       await api("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
       router.push("/login?created=1");
     } catch (err) {
@@ -72,6 +83,18 @@ export default function SignupPage() {
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="grid gap-4">
               <FieldGroup>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoComplete="name"
+                />
+              </FieldGroup>
+              <FieldGroup>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -95,6 +118,10 @@ export default function SignupPage() {
                   minLength={8}
                   autoComplete="new-password"
                 />
+                <p className="text-xs text-muted-foreground">
+                  At least 8 characters with an uppercase, lowercase, number and special
+                  character.
+                </p>
               </FieldGroup>
               <FieldGroup>
                 <Label htmlFor="confirm">Confirm password</Label>
@@ -109,7 +136,7 @@ export default function SignupPage() {
                 />
               </FieldGroup>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <Button type="submit" disabled={loading || !email || !password || !confirm}>
+              <Button type="submit" disabled={loading || !name || !email || !password || !confirm}>
                 {loading ? "Creating account..." : "Sign up"}
               </Button>
             </form>

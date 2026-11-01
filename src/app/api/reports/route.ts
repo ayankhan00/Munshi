@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { fromZonedTime } from "date-fns-tz";
 import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
-import { categoryBreakdown, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses, recentDailyExpense, expenseTrend, rangeSummulative, topExpenses } from "@/lib/services/reports";
+import { categoryBreakdown, categoryBreakdownForDays, monthlySeries, dailyTrend, savingsOverTime, recurringExpenses, recentDailyExpense, expenseTrend, rangeSummulative, topExpenses } from "@/lib/services/reports";
 import { getCurrentBalance } from "@/lib/services/transactions";
 import { currentMonthKey, fnAddDays } from "@/lib/dates";
 
@@ -15,6 +15,14 @@ export async function GET(request: NextRequest) {
     if (kind === "category-breakdown") {
       const res = await categoryBreakdown(user.id, user.timezone, user.financialMonthStartDay, [monthKey]);
       return res;
+    }
+    if (kind === "breakdown") {
+      const days = Number(searchParams.get("days") ?? 30);
+      return categoryBreakdownForDays(
+        user.id,
+        user.timezone,
+        Number.isFinite(days) ? days : 30,
+      );
     }
     if (kind === "monthly-series") {
       const count = Number(searchParams.get("count") ?? 6);

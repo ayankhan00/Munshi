@@ -66,3 +66,41 @@
  POST /api/assistant/voice 200 in 18125ms
  ✓ Compiled /api/transactions in 130ms (481 modules)
  GET /api/transactions?pageSize=20 200 in 5457ms
+ ✓ Compiled in 226ms (263 modules)
+ ✓ Compiled in 143ms (263 modules)
+ ✓ Compiled in 148ms (263 modules)
+ ✓ Compiled in 148ms (263 modules)
+ ✓ Compiled in 137ms (263 modules)
+ ✓ Compiled in 130ms (263 modules)
+ ✓ Compiled in 123ms (263 modules)
+ ✓ Compiled in 131ms (263 modules)
+ ✓ Compiled /api/auth/register in 143ms (137 modules)
+ POST /api/auth/register 201 in 6685ms
+ ✓ Compiled /api/transactions in 95ms (472 modules)
+ POST /api/transactions 200 in 9097ms
+ POST /api/transactions 200 in 9016ms
+ ✓ Compiled /api/reports in 445ms (738 modules)
+ GET /api/reports?kind=breakdown&days=7 200 in 3786ms
+ GET /api/reports?kind=breakdown&days=30 200 in 3248ms
+ ✓ Compiled in 221ms (263 modules)
+ ✓ Compiled in 177ms (263 modules)
+ ✓ Compiled in 152ms (263 modules)
+ ✓ Compiled in 164ms (263 modules)
+ ✓ Compiled in 192ms (263 modules)
+ ✓ Compiled /api/auth/register in 131ms (137 modules)
+ POST /api/auth/register 201 in 7373ms
+ ✓ Compiled /api/assistant/voice in 505ms (482 modules)
+ POST /api/assistant/voice 200 in 18453ms
+ POST /api/assistant/voice 200 in 18743ms
+ ✓ Compiled /api/transactions in 99ms (484 modules)
+ GET /api/transactions?pageSize=20 200 in 5083ms
+ ✓ Compiled in 297ms (263 modules)
+ ✓ Compiled in 205ms (263 modules)
+ ✓ Compiled in 158ms (263 modules)
+ ✓ Compiled in 148ms (263 modules)
+ ✓ Compiled in 178ms (263 modules)
+ ✓ Compiled in 187ms (263 modules)
+ ✓ Compiled /api/auth/register in 209ms (137 modules)
+ POST /api/auth/register 422 in 334ms
+ POST /api/auth/register 422 in 20ms
+ POST /api/auth/register 201 in 7163ms

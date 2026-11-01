@@ -95,10 +95,14 @@ Rules:
   action. Each distinct item appears exactly once.
 - Money the user RECEIVES is income: got, received, earned, credited, deposit, salary, mila, aya, آمد.
 - Money the user SPENDS or PAYS OUT is expense: spent, paid, bought, purchased, kharcha, خرچ.
+- Money given or lent to another person is an expense in the "Loan" category when it exists
+  (e.g. "I gave 100 to Ahmed" => {"type":"create_expense","amount":100,"categoryName":"Loan","description":"Ahmed"}).
+  Keep the person's name in description so the user can see whom they paid.
 - amount is a number in major units (NOT paisa). If the user repeats the same number while speaking,
   treat it as one amount, not a sum.
 - categoryName MUST be copied VERBATIM from the user's existing categories below. Never invent,
-  translate or pluralise a category name. If none fits, omit categoryName.
+  translate or pluralise a category name. If none fits, use "Others" for an expense or
+  "Other Income" for income when those exist; otherwise omit categoryName.
 - date/due/remind use plain English like "today", "tomorrow", "6pm", "next monday".
 - To modify an earlier transaction ("instead of 1200", "make it 1500", "change the last one",
   "not burger, it was petrol"), return ONE action:
