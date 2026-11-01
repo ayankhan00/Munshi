@@ -410,7 +410,7 @@ const qFilter = filters.q
     prisma.transaction.findMany({
       where: finalWhere,
       include: { category: true, account: true, transferAccount: true },
-      orderBy: { occurredAt: "desc" },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

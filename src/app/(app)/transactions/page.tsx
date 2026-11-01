@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { api, formatMoney } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,10 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [total, setTotal] = useState(0);
+  const [editing, setEditing] = useState<TxRow | null>(null);
   const emptyForm = {
     type: "expense",
     amount: "",
@@ -77,9 +81,14 @@ export default function TransactionsPage() {
     date: todayLocal(),
   };
   const [form, setForm] = useState(emptyForm);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    const t = setTimeout(() => {
+      setDebouncedQ(q.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(t);
   }, [q]);
 
@@ -98,15 +107,21 @@ export default function TransactionsPage() {
   }, []);
 
   const loadRows = useCallback(async () => {
-    const params = new URLSearchParams({ pageSize: "50" });
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
     if (filter !== "all") params.set("type", filter);
     if (debouncedQ) params.set("q", debouncedQ);
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (categoryId) params.set("categoryId", categoryId);
-    const data = await api<{ rows: TxRow[] }>(`/api/transactions?${params.toString()}`);
+    const data = await api<{ rows: TxRow[]; total: number }>(
+      `/api/transactions?${params.toString()}`,
+    );
     setRows(data.rows);
-  }, [filter, debouncedQ, from, to, categoryId]);
+    setTotal(data.total);
+  }, [filter, debouncedQ, from, to, categoryId, page, pageSize]);
 
   function resetFilters() {
     setQ("");
@@ -115,6 +130,7 @@ export default function TransactionsPage() {
     setTo("");
     setCategoryId("");
     setFilter("all");
+    setPage(1);
     setLoading(true);
   }
 
@@ -145,6 +161,11 @@ export default function TransactionsPage() {
     })();
   }, [loadRows]);
 
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [total, pageSize, page]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -162,15 +183,7 @@ export default function TransactionsPage() {
         description: form.description,
         date: form.date,
       };
-      if (editId) {
-        await api("/api/transactions", {
-          method: "PUT",
-          body: JSON.stringify({ id: editId, ...payload }),
-        });
-        setEditId(null);
-      } else {
-        await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
-      }
+      await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
       setForm(emptyForm);
       await loadRows();
     } catch (err) {
@@ -181,8 +194,9 @@ export default function TransactionsPage() {
   }
 
   function startEdit(t: TxRow) {
-    setEditId(t.id);
-    setForm({
+    setEditing(t);
+    setEditError("");
+    setEditForm({
       type: t.type,
       amount: String(t.amountMinor / 100),
       categoryId: t.categoryId ?? "",
@@ -191,12 +205,54 @@ export default function TransactionsPage() {
       description: t.description ?? "",
       date: t.occurredAt.slice(0, 10),
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelEdit() {
-    setEditId(null);
-    setForm(emptyForm);
+  function closeEdit() {
+    setEditing(null);
+    setEditForm(emptyForm);
+    setEditError("");
+  }
+
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEditing(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editing]);
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setSaving(true);
+    setEditError("");
+    try {
+      const amount = parseFloat(editForm.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
+      await api("/api/transactions", {
+        method: "PUT",
+        body: JSON.stringify({
+          id: editing.id,
+          type: editForm.type,
+          amount,
+          categoryId: editForm.categoryId || undefined,
+          accountId: editForm.accountId || undefined,
+          transferAccountId:
+            editForm.type === "transfer"
+              ? editForm.transferAccountId || undefined
+              : undefined,
+          description: editForm.description,
+          date: editForm.date,
+        }),
+      });
+      closeEdit();
+      await loadRows();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to update transaction");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -210,6 +266,8 @@ export default function TransactionsPage() {
   }
 
   const categoryKind = form.type === "income" ? "income" : "expense";
+  const editCategoryKind = editForm.type === "income" ? "income" : "expense";
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="space-y-6">
@@ -219,7 +277,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{editId ? "Edit transaction" : "Add transaction"}</CardTitle>
+          <CardTitle>Add transaction</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -324,13 +382,8 @@ export default function TransactionsPage() {
             </FieldGroup>
             <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
               <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : editId ? "Save changes" : "Add transaction"}
+                {saving ? "Saving..." : "Add transaction"}
               </Button>
-              {editId ? (
-                <Button type="button" variant="outline" onClick={cancelEdit}>
-                  Cancel
-                </Button>
-              ) : null}
             </div>
           </form>
         </CardContent>
@@ -362,6 +415,7 @@ export default function TransactionsPage() {
                 value={filter}
                 onChange={(e) => {
                   setFilter(e.target.value);
+                  setPage(1);
                   setLoading(true);
                 }}
               >
@@ -380,6 +434,7 @@ export default function TransactionsPage() {
                 value={categoryId}
                 onChange={(e) => {
                   setCategoryId(e.target.value);
+                  setPage(1);
                   setLoading(true);
                 }}
               >
@@ -399,6 +454,7 @@ export default function TransactionsPage() {
                 value={from}
                 onChange={(e) => {
                   setFrom(e.target.value);
+                  setPage(1);
                   setLoading(true);
                 }}
               />
@@ -411,9 +467,26 @@ export default function TransactionsPage() {
                 value={to}
                 onChange={(e) => {
                   setTo(e.target.value);
+                  setPage(1);
                   setLoading(true);
                 }}
               />
+            </FieldGroup>
+            <FieldGroup>
+              <Label htmlFor="f-page-size">Per page</Label>
+              <Select
+                id="f-page-size"
+                value={String(pageSize)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                  setLoading(true);
+                }}
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+              </Select>
             </FieldGroup>
             <div className="flex items-end">
               <Button variant="outline" onClick={resetFilters}>
@@ -509,8 +582,193 @@ export default function TransactionsPage() {
               </table>
             </div>
           )}
+          {!loading && total > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Showing {(page - 1) * pageSize + 1}–
+                {(page - 1) * pageSize + rows.length} of {total}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLoading(true);
+                    setPage((p) => Math.max(1, p - 1));
+                  }}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLoading(true);
+                    setPage((p) => Math.min(totalPages, p + 1));
+                  }}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
+
+      {editing ? (
+        <div
+          className="fixed inset-0 z-50 !m-0 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeEdit}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-tx-title"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="edit-tx-title" className="text-base font-semibold">
+                  Edit transaction
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {editing.description || TYPE_LABEL[editing.type] || editing.type}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEdit}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="grid gap-3 sm:grid-cols-2">
+              <FieldGroup>
+                <Label htmlFor="e-type">Type</Label>
+                <Select
+                  id="e-type"
+                  value={editForm.type}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, type: e.target.value, categoryId: "" })
+                  }
+                >
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                  <option value="transfer">Transfer</option>
+                </Select>
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="e-amount">Amount</Label>
+                <Input
+                  id="e-amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                  required
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="e-date">Date</Label>
+                <Input
+                  id="e-date"
+                  type="date"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="e-category">Category</Label>
+                <Select
+                  id="e-category"
+                  value={editForm.categoryId}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, categoryId: e.target.value })
+                  }
+                  disabled={editForm.type === "transfer"}
+                >
+                  <option value="">Auto / optional</option>
+                  {categories
+                    .filter((c) => c.kind === editCategoryKind)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </Select>
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="e-account">Account</Label>
+                <Select
+                  id="e-account"
+                  value={editForm.accountId}
+                  onChange={(e) => setEditForm({ ...editForm, accountId: e.target.value })}
+                >
+                  <option value="">Default</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </FieldGroup>
+              {editForm.type === "transfer" ? (
+                <FieldGroup>
+                  <Label htmlFor="e-transfer-account">To account</Label>
+                  <Select
+                    id="e-transfer-account"
+                    value={editForm.transferAccountId}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, transferAccountId: e.target.value })
+                    }
+                  >
+                    <option value="">Select account</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldGroup>
+              ) : null}
+              <FieldGroup className="sm:col-span-2">
+                <Label htmlFor="e-description">Description</Label>
+                <Input
+                  id="e-description"
+                  type="text"
+                  value={editForm.description}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, description: e.target.value })
+                  }
+                />
+              </FieldGroup>
+              {editError ? (
+                <p className="text-sm text-destructive sm:col-span-2">{editError}</p>
+              ) : null}
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving..." : "Save changes"}
+                </Button>
+                <Button type="button" variant="outline" onClick={closeEdit}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
