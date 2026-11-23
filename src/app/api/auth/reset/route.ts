@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { randomBytes, createHash } from "node:crypto";
 import { resetRequestSchema } from "@/lib/validation";
 import { jsonError, jsonOk, assertOrigin, rateLimit, getClientIp } from "@/lib/http";
+import { mailConfigured, sendPasswordResetEmail } from "@/lib/mail";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -30,8 +31,17 @@ export async function POST(request: NextRequest) {
         expiresAt: new Date(Date.now() + 30 * 60_000),
       },
     });
-    // No mail provider in this environment: surface the token in dev only.
-    if (process.env.NODE_ENV !== "production") devToken = raw;
+    if (mailConfigured()) {
+      try {
+        await sendPasswordResetEmail(user.email, raw);
+      } catch (err) {
+        console.error("Password reset email failed", err);
+        if (process.env.NODE_ENV !== "production") devToken = raw;
+      }
+    } else if (process.env.NODE_ENV !== "production") {
+      // Keep the local no-email workflow, but never hand out a token in production.
+      devToken = raw;
+    }
   }
 
   return jsonOk({
