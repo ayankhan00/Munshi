@@ -3,6 +3,7 @@ import { parseNaturalDateTime, fnAddDays, fnAddMonths, fnAddWeeks } from "@/lib/
 import { formatInTimeZone } from "date-fns-tz";
 import { notifyInApp, sendPushForUser } from "@/lib/notifications";
 import { createHash } from "node:crypto";
+import { Prisma } from "@prisma/client";
 
 export interface ReminderInput {
   title: string;
@@ -49,20 +50,30 @@ export async function createReminder(userId: string, input: ReminderInput, defau
   });
   if (existing) return { reminder: existing, duplicate: true };
 
-  const reminder = await prisma.reminder.create({
-    data: {
-      userId,
-      title: input.title,
-      body: input.body ?? "",
-      remindAt,
-      timezone,
-      type: input.type ?? "custom",
-      recurrence,
-      relatedTaskId: input.relatedTaskId,
-      dedupeKey,
-    },
-  });
-  return { reminder, duplicate: false };
+  try {
+    const reminder = await prisma.reminder.create({
+      data: {
+        userId,
+        title: input.title,
+        body: input.body ?? "",
+        remindAt,
+        timezone,
+        type: input.type ?? "custom",
+        recurrence,
+        relatedTaskId: input.relatedTaskId,
+        dedupeKey,
+      },
+    });
+    return { reminder, duplicate: false };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const existing = await prisma.reminder.findUnique({
+        where: { userId_dedupeKey: { userId, dedupeKey } },
+      });
+      if (existing) return { reminder: existing, duplicate: true };
+    }
+    throw err;
+  }
 }
 
 export async function listReminders(
@@ -80,7 +91,8 @@ export async function listReminders(
     orderBy: { remindAt: "asc" },
     take: 200,
   });
-  return { rows, total: rows.length };
+  const total = await prisma.reminder.count({ where });
+  return { rows, total };
 }
 
 export async function updateReminder(
@@ -100,10 +112,12 @@ export async function updateReminder(
     remindAt = parsed.date;
   }
 
+  const title = input.title ?? existing.title;
   const reminder = await prisma.reminder.update({
     where: { id },
     data: {
-      title: input.title ?? existing.title,
+      title,
+      dedupeKey: reminderDedupeKey(title, remindAt),
       body: input.body ?? existing.body,
       remindAt,
       timezone: input.timezone ?? existing.timezone,
@@ -143,12 +157,12 @@ export async function processDueReminders(now = new Date()) {
     where: { status: "pending", remindAt: { lte: now } },
     take: 200,
     orderBy: { remindAt: "asc" },
+    include: { user: true },
   });
 
   let sent = 0;
   for (const reminder of due) {
-    const user = await prisma.user.findUnique({ where: { id: reminder.userId } });
-    if (user?.notificationsEnabled !== false) {
+    if (reminder.user.notificationsEnabled !== false) {
       await notifyInApp(
         reminder.userId,
         reminder.title,

@@ -181,7 +181,7 @@ export async function dailyTrend(
   });
   const byDay = new Map<string, number>();
   for (const t of txns) {
-    const key = `${t.occurredAt.getUTCFullYear()}-${String(t.occurredAt.getUTCMonth() + 1).padStart(2, "0")}-${String(t.occurredAt.getUTCDate()).padStart(2, "0")}`;
+    const key = dateKey(t.occurredAt, tz);
     byDay.set(key, (byDay.get(key) ?? 0) + t.amountMinor);
   }
   return [...byDay.entries()]

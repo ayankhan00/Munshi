@@ -5,6 +5,11 @@ import { categoryBreakdown, categoryBreakdownForDays, monthlySeries, dailyTrend,
 import { getCurrentBalance } from "@/lib/services/transactions";
 import { currentMonthKey, fnAddDays } from "@/lib/dates";
 
+function boundedInt(value: string | null, fallback: number, max: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.min(max, Math.floor(parsed)) : fallback;
+}
+
 export async function GET(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
@@ -17,31 +22,27 @@ export async function GET(request: NextRequest) {
       return res;
     }
     if (kind === "breakdown") {
-      const days = Number(searchParams.get("days") ?? 30);
-      return categoryBreakdownForDays(
-        user.id,
-        user.timezone,
-        Number.isFinite(days) ? days : 30,
-      );
+      const days = boundedInt(searchParams.get("days"), 30, 366);
+      return categoryBreakdownForDays(user.id, user.timezone, days);
     }
     if (kind === "monthly-series") {
-      const count = Number(searchParams.get("count") ?? 6);
+      const count = boundedInt(searchParams.get("count"), 6, 60);
       return monthlySeries(user.id, user.timezone, user.financialMonthStartDay, count);
     }
     if (kind === "daily-trend") {
       return dailyTrend(user.id, user.timezone, user.financialMonthStartDay, monthKey);
     }
     if (kind === "savings") {
-      const count = Number(searchParams.get("count") ?? 6);
+      const count = boundedInt(searchParams.get("count"), 6, 60);
       return savingsOverTime(user.id, user.timezone, user.financialMonthStartDay, count);
     }
     if (kind === "recurring") {
-      const months = Number(searchParams.get("months") ?? 3);
+      const months = boundedInt(searchParams.get("months"), 3, 60);
       return recurringExpenses(user.id, months);
     }
     if (kind === "trend") {
-      const days = Number(searchParams.get("days") ?? 7);
-      return expenseTrend(user.id, user.timezone, Number.isFinite(days) ? days : 7);
+      const days = boundedInt(searchParams.get("days"), 7, 366);
+      return expenseTrend(user.id, user.timezone, days);
     }
     if (kind === "range") {
       const from = searchParams.get("from");

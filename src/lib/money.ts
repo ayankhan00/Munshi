@@ -5,7 +5,7 @@ export function toMinor(amount: number | string): number {
     typeof amount === "string"
       ? parseFloat(amount.replace(/[,\s\u00a0]/g, ""))
       : amount;
-  if (!Number.isFinite(n)) throw new Error("Invalid amount");
+  if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid amount");
   if (n > 1e10) throw new Error("Amount too large");
   return Math.round(n * MINOR_PER_UNIT);
 }

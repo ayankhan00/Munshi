@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { createHash } from "node:crypto";
 import { resetConfirmSchema } from "@/lib/validation";
 import { jsonError, jsonOk, assertOrigin, rateLimit, getClientIp } from "@/lib/http";
+import { ApiError } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -22,17 +23,24 @@ export async function POST(request: NextRequest) {
     return jsonError("Invalid or expired token.", 400);
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: token.userId },
-      data: { passwordHash: hashPassword(parsed.data.password) },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id: token.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ApiError(400, "Invalid or expired token.");
+      await tx.user.update({
+        where: { id: token.userId },
+        data: { passwordHash: hashPassword(parsed.data.password) },
+      });
+      await tx.passwordResetToken.deleteMany({ where: { userId: token.userId } });
+      await tx.session.deleteMany({ where: { userId: token.userId } });
     });
-    await tx.passwordResetToken.update({
-      where: { id: token.id },
-      data: { usedAt: new Date() },
-    });
-    await tx.session.deleteMany({ where: { userId: token.userId } });
-  });
+  } catch (err) {
+    if (err instanceof ApiError) return jsonError(err.message, err.status);
+    throw err;
+  }
 
   return jsonOk({ success: true });
 }

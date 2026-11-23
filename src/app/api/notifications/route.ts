@@ -12,9 +12,13 @@ export async function GET(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     const { searchParams } = new URL(request.url);
+    const rawLimit = Number(searchParams.get("limit") ?? 50);
+    const limit = Number.isFinite(rawLimit)
+      ? Math.min(100, Math.max(1, Math.floor(rawLimit)))
+      : 50;
     return getInAppNotifications(user.id, {
       unreadOnly: searchParams.get("unread") === "1",
-      limit: Number(searchParams.get("limit") ?? 50),
+      limit,
     });
   });
 }

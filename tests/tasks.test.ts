@@ -44,6 +44,28 @@ describe("tasks service", () => {
     expect(task.dueAt!.getTime()).toBe(expected.getTime());
   });
 
+  it("paginates task listings", async () => {
+    const u = await user();
+    for (let i = 0; i < 5; i++) await createTask(u.id, { title: `task ${i}` }, TZ);
+
+    const first = await listTasks(u.id, { page: 1, pageSize: 2 });
+    expect(first.total).toBe(5);
+    expect(first.rows).toHaveLength(2);
+
+    const second = await listTasks(u.id, { page: 2, pageSize: 2 });
+    expect(second.rows).toHaveLength(2);
+    expect(second.rows.some((r) => first.rows.some((p) => p.id === r.id))).toBe(false);
+  });
+
+  it("re-derives dueAt when the natural due date changes", async () => {
+    const u = await user();
+    const task = await createTask(u.id, { title: "reschedule due", due: "2030-06-01" }, TZ);
+    const expected = parseNaturalDateTime("2030-06-15", TZ)!.date;
+    const updated = await updateTask(u.id, task.id, { due: "2030-06-15" }, TZ);
+    expect(updated.dueAt!.getTime()).toBe(expected.getTime());
+    expect(updated.dueAt!.getTime()).not.toBe(task.dueAt!.getTime());
+  });
+
   it("filters by status, including the 'all' escape hatch", async () => {
     const u = await user();
     const a = await createTask(u.id, { title: "pending one" }, TZ);

@@ -2,17 +2,21 @@ import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { verifyPassword, hashPassword } from "@/lib/auth/password";
-import { jsonError } from "@/lib/http";
+import { jsonError, rateLimit } from "@/lib/http";
+import { passwordSchema } from "@/lib/validation";
 import { z } from "zod";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8).max(128),
+  newPassword: passwordSchema,
 });
 
 export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
+    if (!rateLimit(`password:change:${user.id}`, 5, 60_000)) {
+      return jsonError("Too many attempts. Try again later.", 429);
+    }
     const body = await request.json().catch(() => ({}));
     const parsed = changePasswordSchema.parse(body);
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });

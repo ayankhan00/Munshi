@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       status: searchParams.get("status") ?? undefined,
       priority: searchParams.get("priority") ?? undefined,
       q: searchParams.get("q") ?? undefined,
+      page: searchParams.get("page") ?? undefined,
+      pageSize: searchParams.get("pageSize") ?? undefined,
     });
     return listTasks(user.id, parsed);
   });

@@ -197,8 +197,8 @@ export async function runDueRecurringRules(now = new Date()) {
             recurringRuleId: rule.id,
           });
           created += 1;
-        } catch {
-          // skip an occurrence that fails (e.g. archived account)
+        } catch (error) {
+          console.error(`Failed recurring rule ${rule.id} occurrence on ${next.toISOString().slice(0, 10)}`, error);
         }
       }
       next = advance(next, rule.frequency, rule.interval);

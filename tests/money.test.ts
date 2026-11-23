@@ -8,4 +8,10 @@ describe("money", () => {
   it("formats currency", () => {
     expect(formatMoney(150000, "PKR")).toContain("1,500");
   });
+
+  it("rejects non-positive and invalid amounts", () => {
+    expect(() => toMinor(-100)).toThrow("Invalid amount");
+    expect(() => toMinor(0)).toThrow("Invalid amount");
+    expect(() => toMinor(NaN)).toThrow("Invalid amount");
+  });
 });

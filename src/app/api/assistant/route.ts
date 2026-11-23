@@ -3,10 +3,12 @@ import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { aiMessageSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
 import { runAssistant, createAiSession, persistTurn } from "@/lib/ai/assistant";
+import { rateLimit } from "@/lib/http";
 
 export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
+    if (!rateLimit(`ai:${user.id}`, 30, 60_000)) throw new ApiError(429, "Too many requests.");
     const body = await request.json().catch(() => ({}));
     const parsed = aiMessageSchema.parse(body);
 

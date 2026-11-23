@@ -3,29 +3,28 @@ import { z } from "zod";
 import { unwrapAsync, requireApiUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { accountCreateSchema, accountUpdateSchema } from "@/lib/validation";
-import { balanceForAccount } from "@/lib/ledger";
-import { getDefaultAccount } from "@/lib/services/transactions";
+import { getCurrentBalance, getDefaultAccount } from "@/lib/services/transactions";
 
 export async function GET(_request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     await getDefaultAccount(user.id);
-    const accounts = await prisma.account.findMany({
-      where: { userId: user.id, archived: false },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-    });
-    const txns = await prisma.transaction.findMany({
-      where: { userId: user.id, deletedAt: null },
-    });
-    const rows = accounts.map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      currency: a.currency,
-      isDefault: a.isDefault,
-      openingBalanceMinor: a.openingBalanceMinor,
-      ...balanceForAccount(a.id, a.openingBalanceMinor, txns),
-    }));
+    const { accounts } = await getCurrentBalance(user.id);
+    const rows = accounts
+      .sort(
+        (a, b) =>
+          Number(b.account.isDefault) - Number(a.account.isDefault) ||
+          a.account.createdAt.getTime() - b.account.createdAt.getTime(),
+      )
+      .map(({ account: a, ...ledger }) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        currency: a.currency,
+        isDefault: a.isDefault,
+        openingBalanceMinor: a.openingBalanceMinor,
+        ...ledger,
+      }));
     return { rows, total: rows.length };
   });
 }

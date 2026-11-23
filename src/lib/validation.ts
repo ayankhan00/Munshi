@@ -45,7 +45,7 @@ export const txCreateSchema = z
   .object({
     type: z.enum(txTypes),
     amount: z.number().finite().refine(
-      (n) => Math.abs(n) > 0 && Math.abs(n) < 1e10,
+      (n) => n > 0 && n < 1e10,
       "Amount must be greater than zero",
     ),
     description: z.string().trim().max(200).optional().default(""),

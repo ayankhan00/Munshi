@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { toMinor } from "@/lib/money";
 import { zonedAt, periodKey } from "@/lib/dates";
@@ -230,6 +231,24 @@ export async function createTransaction(userId: string, input: TxInput) {
   await installDefaultCategories(userId);
 
   const created = await prisma.$transaction(async (tx) => {
+    if (input.type === "refund") {
+      const src = await tx.transaction.findFirst({
+        where: { id: input.sourceTransactionId, userId, deletedAt: null },
+      });
+      if (!src || src.type !== "expense") throw new Error("Source expense not found");
+      const refunded = await tx.transaction.aggregate({
+        where: {
+          userId,
+          type: "refund",
+          sourceTransactionId: input.sourceTransactionId,
+          deletedAt: null,
+        },
+        _sum: { amountMinor: true },
+      });
+      if ((refunded._sum.amountMinor ?? 0) + amountMinor > src.amountMinor) {
+        throw new Error("Refund cannot exceed the original expense amount");
+      }
+    }
     const transaction = await tx.transaction.create({
       data: {
         userId,
@@ -299,8 +318,12 @@ export async function updateTransaction(
     if (!account) throw new Error("Account not found");
   }
   if (patch.transferAccountId || existing.type === "transfer") {
-const transferAccount = await prisma.account.findUnique({
-      where: { id: patch.transferAccountId ?? existing.transferAccountId ?? "" },
+    const transferAccount = await prisma.account.findFirst({
+      where: {
+        id: patch.transferAccountId ?? existing.transferAccountId ?? "",
+        userId,
+        archived: false,
+      },
     });
     if (patch.transferAccountId === null || existing.transferAccountId === null) {
       // no-op
@@ -436,11 +459,11 @@ const qFilter = filters.q
         }
       : {};
 
-  const finalWhere: any = {
+  const finalWhere = {
     ...where,
     ...qFilter,
     ...dateFilter,
-  };
+  } as Prisma.TransactionWhereInput;
 
   const [rows, total] = await Promise.all([
     prisma.transaction.findMany({

@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { unwrapAsync, requireApiUser } from "@/lib/api";
+import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { settingsSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/http";
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest) {
     const parsed = settingsSchema.safeParse(body);
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      throw new (require("@/lib/api").ApiError)(422, first ? first.message : "Invalid input");
+      throw new ApiError(422, first ? first.message : "Invalid input");
     }
     const updated = await prisma.user.update({
       where: { id: user.id },

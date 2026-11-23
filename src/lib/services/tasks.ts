@@ -23,7 +23,7 @@ function normalizePriority(priority: string): string {
   return valid.includes(priority) ? priority : "medium";
 }
 
-async function deriveDueAt(input: TaskInput, tz: string): Promise<Date | undefined> {
+async function deriveDueAt(input: Pick<TaskInput, "due" | "dueAt">, tz: string): Promise<Date | undefined> {
   if (input.dueAt) return new Date(input.dueAt);
   if (input.due) {
     const parsed = parseNaturalDateTime(input.due, tz);
@@ -53,7 +53,7 @@ export async function updateTask(userId: string, id: string, input: Partial<Task
   const existing = await prisma.task.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("Task not found");
   const dueAt = input.due !== undefined || input.dueAt !== undefined
-    ? await deriveDueAt({ ...existing, ...input } as TaskInput, timezone)
+    ? await deriveDueAt({ due: input.due, dueAt: input.dueAt }, timezone)
     : existing.dueAt;
 
   const completedAt =
@@ -120,7 +120,12 @@ export async function listTasks(
     where.OR = [{ title: { contains: filters.q } }, { description: { contains: filters.q } }];
   }
   const [rows, total] = await Promise.all([
-    prisma.task.findMany({ where, orderBy: [{ status: "asc" }, { dueAt: "asc" }] }),
+    prisma.task.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { dueAt: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
     prisma.task.count({ where }),
   ]);
   return { rows, total, page, pageSize };

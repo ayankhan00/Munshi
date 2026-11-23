@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { makeUser, cleanupUsers, prisma } from "./helpers";
-import { createTransaction } from "@/lib/services/transactions";
+import { createTransaction, updateTransaction } from "@/lib/services/transactions";
 
 const createdUserIds: string[] = [];
 async function user() {
@@ -73,5 +73,55 @@ describe("category resolution when creating a transaction", () => {
       where: { userId: u.id, kind: "expense", name: { equals: "crypto trading", mode: "insensitive" } },
     });
     expect(cats).toHaveLength(1);
+  });
+});
+
+describe("transaction ownership and refund limits", () => {
+  it("cannot retarget a transfer to another user's account", async () => {
+    const u = await user();
+    const other = await user();
+    const ownAccount = await prisma.account.findFirstOrThrow({ where: { userId: u.id } });
+    const ownTarget = await prisma.account.create({
+      data: { userId: u.id, name: "Bank", type: "bank" },
+    });
+    const tx = await createTransaction(u.id, {
+      type: "transfer",
+      amount: 100,
+      accountId: ownAccount.id,
+      transferAccountId: ownTarget.id,
+      date: "2030-03-01",
+    });
+    const otherAccount = await prisma.account.findFirstOrThrow({ where: { userId: other.id } });
+
+    await expect(
+      updateTransaction(u.id, tx.transaction.id, { transferAccountId: otherAccount.id }),
+    ).rejects.toThrow("Destination account not found");
+  });
+
+  it("does not let two refunds double-credit one expense", async () => {
+    const u = await user();
+    const expense = await createTransaction(u.id, {
+      type: "expense",
+      amount: 100,
+      description: "original expense",
+      date: "2030-04-01",
+    });
+    await createTransaction(u.id, {
+      type: "refund",
+      amount: 100,
+      sourceTransactionId: expense.transaction.id,
+      idempotencyKey: "refund-key-1",
+      date: "2030-04-02",
+    });
+
+    await expect(
+      createTransaction(u.id, {
+        type: "refund",
+        amount: 100,
+        sourceTransactionId: expense.transaction.id,
+        idempotencyKey: "refund-key-2",
+        date: "2030-04-03",
+      }),
+    ).rejects.toThrow("Refund cannot exceed the original expense amount");
   });
 });

@@ -1,10 +1,11 @@
 export function csvEscape(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
   const s = typeof value === "number" ? String(value) : value;
-  if (/[",\n\r]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
+  const safe = typeof value === "number" || !/^[=+\-@\t\r]/.test(s) ? s : `'${s}`;
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return s;
+  return safe;
 }
 
 export function toCsv(headers: string[], rows: (string | number | null | undefined)[][]): string {

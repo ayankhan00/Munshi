@@ -1,17 +1,19 @@
 import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { rateLimit } from "@/lib/http";
 import {
   runVoiceAssistant,
   createAiSession,
   persistTurn,
 } from "@/lib/ai/assistant";
 
-const MAX_AUDIO_CHARS = 8_000_000;
+const MAX_AUDIO_CHARS = 2_000_000;
 
 export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
+    if (!rateLimit(`ai:${user.id}`, 30, 60_000)) throw new ApiError(429, "Too many requests.");
     const body = await request.json().catch(() => ({}));
     const audio = typeof body.audio === "string" ? body.audio : "";
     const mimeType =

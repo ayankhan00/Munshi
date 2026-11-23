@@ -49,6 +49,29 @@ describe("reminders service", () => {
     expect(total).toBe(1);
   });
 
+  it("recomputes the dedupe key after an edit", async () => {
+    const u = await user();
+    const { reminder } = await createReminder(
+      u.id,
+      { title: "Old title", remindAt: "2033-05-01T10:00:00.000Z" },
+      TZ,
+    );
+    expect(reminder.dedupeKey).toBe(
+      reminderDedupeKey("Old title", new Date("2033-05-01T10:00:00.000Z")),
+    );
+
+    const updated = await updateReminder(
+      u.id,
+      reminder.id,
+      { title: "New title", remindAt: "2033-05-01T11:00:00.000Z" },
+      TZ,
+    );
+    expect(updated.dedupeKey).toBe(
+      reminderDedupeKey("New title", new Date("2033-05-01T11:00:00.000Z")),
+    );
+    expect(updated.dedupeKey).not.toBe(reminder.dedupeKey);
+  });
+
   it("throws on an unparseable reminder time", async () => {
     const u = await user();
     await expect(

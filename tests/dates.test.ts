@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { intentMappedDate } from "@/lib/ai/executor";
+import { dateKey, parseNaturalDateTime } from "@/lib/dates";
 
 describe("assistant relative dates use the user's timezone", () => {
   const tz = "Asia/Karachi";
@@ -15,5 +16,15 @@ describe("assistant relative dates use the user's timezone", () => {
   it("returns undefined when there is no date or timezone", () => {
     expect(intentMappedDate(undefined, tz, now)).toBeUndefined();
     expect(intentMappedDate("yesterday", undefined, now)).toBeUndefined();
+  });
+});
+
+describe("calendar date validation", () => {
+  const tz = "Asia/Karachi";
+
+  it("keeps the 31st and rejects impossible dates", () => {
+    const parsed = parseNaturalDateTime("2026-01-31", tz);
+    expect(parsed && dateKey(parsed.date, tz)).toBe("2026-01-31");
+    expect(() => parseNaturalDateTime("2026-02-30", tz)).toThrow("Invalid date");
   });
 });

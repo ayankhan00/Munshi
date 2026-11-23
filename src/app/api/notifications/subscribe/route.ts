@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
     const { endpoint, keys } = subscribeSchema.parse(body);
     const userAgent = request.headers.get("user-agent");
 
+    const existing = await prisma.pushSubscription.findUnique({ where: { endpoint } });
+    if (existing && existing.userId !== user.id) {
+      throw new ApiError(409, "This endpoint is already subscribed by another user.");
+    }
+
     await prisma.pushSubscription.upsert({
       where: { endpoint },
       update: {

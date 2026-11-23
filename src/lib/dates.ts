@@ -14,9 +14,11 @@ export function zonedAt(
   hour = 0,
   minute = 0,
 ): Date {
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  if (day < 1 || day > daysInMonth) throw new Error("Invalid date");
   const y = String(year).padStart(4, "0");
   const mo = String(month + 1).padStart(2, "0");
-  const d = String(Math.max(1, Math.min(day, 28))).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
   const h = String(hour).padStart(2, "0");
   const mi = String(minute).padStart(2, "0");
   return fromZonedTime(`${y}-${mo}-${d}T${h}:${mi}:00`, tz);
@@ -137,9 +139,8 @@ export function parseNaturalDateTime(
   const strict = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (strict) {
     const [, y, mo, d] = strict;
-    const base = fromZonedTime(`${y}-${mo}-${d}T00:00:00`, tz);
     return {
-      date: time ? zonedAt(tz, +y, +mo - 1, +d, time.hour, time.minute) : base,
+      date: zonedAt(tz, +y, +mo - 1, +d, time?.hour, time?.minute),
       hadDate: true,
       hadTime: !!time,
     };
