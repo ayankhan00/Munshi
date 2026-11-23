@@ -63,21 +63,21 @@ describe("isAllowedOrigin", () => {
 });
 
 describe("assertOrigin", () => {
-  const original = process.env.NEXT_PUBLIC_APP_URL;
+  const original = process.env.APP_URL;
   afterEach(() => {
-    if (original === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
-    else process.env.NEXT_PUBLIC_APP_URL = original;
+    if (original === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = original;
   });
 
   it("allows the request's own origin even when APP_URL differs", () => {
-    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    process.env.APP_URL = "http://localhost:3000";
     expect(
       assertOrigin(makeRequest("http://127.0.0.1:3000/api/auth/register", "http://127.0.0.1:3000")),
     ).toBe(true);
   });
 
   it("rejects a foreign origin", () => {
-    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    process.env.APP_URL = "http://localhost:3000";
     expect(
       assertOrigin(makeRequest("http://localhost:3000/api/auth/register", "http://evil.example")),
     ).toBe(false);

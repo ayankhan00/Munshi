@@ -34,7 +34,7 @@ export function isAllowedOrigin(
   // request.url to localhost, so the Host header is authoritative.
   if (opts.host) add(`${opts.proto ?? "http"}://${opts.host.split(",")[0].trim()}`);
   add(opts.url);
-  // NEXT_PUBLIC_APP_URL may list one or more comma/space-separated origins
+  // APP_URL may list one or more comma/space-separated origins
   // (handy behind a proxy); the request's own host is always allowed.
   if (opts.appUrl) {
     for (const entry of opts.appUrl.split(/[,\s]+/)) add(entry.trim());
@@ -60,7 +60,7 @@ export function assertOrigin(request: Request): boolean {
     url: request.url,
     host: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
     proto,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL,
+    appUrl: process.env.APP_URL,
   });
 }
 
