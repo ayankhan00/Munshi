@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
     if (!assertOrigin(request)) throw new ApiError(403, "Invalid origin.");
     const ip = getClientIp(request);
-    if (!rateLimit(`push:subscribe:${ip}`, 30, 60_000)) {
+    if (!(await rateLimit(`push:subscribe:${ip}`, 30, 60_000))) {
       throw new ApiError(429, "Too many attempts. Try again later.");
     }
     const user = await requireApiUser();

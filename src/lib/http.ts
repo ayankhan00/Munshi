@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 export function jsonOk<T>(data: T, status = 200): NextResponse {
   return NextResponse.json({ ok: true, data }, { status });
@@ -63,25 +64,40 @@ export function assertOrigin(request: Request): boolean {
   });
 }
 
-const buckets = new Map<string, { count: number; resetAt: number }>();
-
-export function rateLimit(
+export async function rateLimit(
   key: string,
   limit = 30,
   windowMs = 60_000,
-): boolean {
-  const now = Date.now();
-  const bucket = buckets.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
+): Promise<boolean> {
+  // One shared counter per fixed window; the DB upsert is atomic across instances.
+  const windowStart = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+  const rows = await prisma.$queryRaw<{ count: number }[]>`
+    INSERT INTO "RateLimitCounter" ("key", "windowStart", "count", "updatedAt")
+    VALUES (${key}, ${windowStart}, 1, NOW())
+    ON CONFLICT ("key") DO UPDATE
+    SET "windowStart" = CASE WHEN "RateLimitCounter"."windowStart" < ${windowStart}
+          THEN ${windowStart} ELSE "RateLimitCounter"."windowStart" END,
+        "count" = CASE WHEN "RateLimitCounter"."windowStart" < ${windowStart}
+          THEN 1 ELSE "RateLimitCounter"."count" + 1 END,
+        "updatedAt" = NOW()
+    RETURNING "count"
+  `;
+  // Stale keys are cheap to drop occasionally; otherwise the table grows forever.
+  if (Math.random() < 0.01) {
+    await prisma.rateLimitCounter.deleteMany({
+      where: { windowStart: { lt: new Date(Date.now() - 86_400_000) } },
+    });
   }
-  bucket.count += 1;
-  if (buckets.size > 10_000) buckets.clear();
-  return bucket.count <= limit;
+  return rows[0]?.count <= limit;
 }
 
 export function getClientIp(request: Request): string {
+  // Only trust Vercel's own header when actually running on Vercel; elsewhere
+  // a client could set it itself and get a fresh rate-limit bucket per request.
+  if (process.env.VERCEL === "1") {
+    const vercel = request.headers.get("x-vercel-forwarded-for");
+    if (vercel) return vercel.split(",")[0].trim();
+  }
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return request.headers.get("x-real-ip") ?? "unknown";

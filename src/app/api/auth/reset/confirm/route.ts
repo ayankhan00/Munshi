@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api";
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   if (!assertOrigin(request)) return jsonError("Invalid origin.", 403);
-  if (!rateLimit(`auth:reset:confirm:${ip}`, 10, 60_000)) {
+  if (!(await rateLimit(`auth:reset:confirm:${ip}`, 10, 60_000))) {
     return jsonError("Too many requests.", 429);
   }
 

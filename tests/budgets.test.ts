@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, beforeAll } from "vitest";
 import { makeUser, cleanupUsers, expenseCategory, prisma } from "./helpers";
 import {
   setBudget,
@@ -20,6 +20,15 @@ afterAll(async () => {
   await cleanupUsers(createdUserIds);
 });
 
+// The partial unique index is raw SQL (Prisma 6 has no partial-index DSL), and
+// the test DB is built with `db push`, which skips migrations.
+beforeAll(async () => {
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "Budget_userId_period_overall_key"
+    ON "Budget"("userId", "period") WHERE "categoryId" IS NULL
+  `);
+});
+
 const TZ = "Asia/Karachi";
 const PERIOD = "2030-01";
 
@@ -35,6 +44,20 @@ describe("budgets service", () => {
     const matching = rows.filter((r) => r.categoryId === cat.id);
     expect(matching).toHaveLength(1);
     expect(matching[0].amountMinor).toBe(700_000);
+  });
+
+  it("does not create duplicate overall budgets when two writes race", async () => {
+    const u = await user();
+
+    await Promise.all([
+      setBudget(u.id, { amount: 1000, period: PERIOD }),
+      setBudget(u.id, { amount: 2000, period: PERIOD }),
+    ]);
+
+    const rows = await prisma.budget.findMany({
+      where: { userId: u.id, categoryId: null, period: PERIOD },
+    });
+    expect(rows).toHaveLength(1);
   });
 
   it("aggregates spent, remaining and percent for a category budget", async () => {

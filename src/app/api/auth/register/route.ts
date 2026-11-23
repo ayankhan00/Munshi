@@ -19,7 +19,7 @@ function setSessionCookie(res: NextResponse, token: string) {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  if (!rateLimit(`auth:register:${ip}`, 10, 60_000)) return jsonError("Too many attempts. Try again later.", 429);
+  if (!(await rateLimit(`auth:register:${ip}`, 10, 60_000))) return jsonError("Too many attempts. Try again later.", 429);
   if (!assertOrigin(request)) return jsonError("Invalid origin.", 403);
 
   const body = await request.json().catch(() => ({}));

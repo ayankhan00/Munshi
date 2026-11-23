@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { toMinor } from "@/lib/money";
 import { monthRange, currentMonthKey } from "@/lib/dates";
@@ -34,9 +35,8 @@ export async function setBudget(userId: string, input: BudgetInput) {
     });
   }
 
-  // PostgreSQL (like SQLite) treats NULL as distinct in unique indexes, so the
-  // composite unique key cannot be used to upsert an "overall" (category-less)
-  // budget. Handle it with an explicit find-then-write.
+  // A partial unique index enforces one overall budget per user and period;
+  // a concurrent create that loses the race is retried as an update.
   const existing = await prisma.budget.findFirst({
     where: { userId, categoryId: null, period },
   });
@@ -46,9 +46,22 @@ export async function setBudget(userId: string, input: BudgetInput) {
       data: { amountMinor, rollover },
     });
   }
-  return prisma.budget.create({
-    data: { userId, categoryId: null, period, amountMinor, rollover },
-  });
+  try {
+    return await prisma.budget.create({
+      data: { userId, categoryId: null, period, amountMinor, rollover },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const winner = await prisma.budget.findFirstOrThrow({
+        where: { userId, categoryId: null, period },
+      });
+      return prisma.budget.update({
+        where: { id: winner.id },
+        data: { amountMinor, rollover },
+      });
+    }
+    throw err;
+  }
 }
 
 export async function deleteBudget(userId: string, id: string) {

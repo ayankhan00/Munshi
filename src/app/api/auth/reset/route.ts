@@ -7,7 +7,7 @@ import { jsonError, jsonOk, assertOrigin, rateLimit, getClientIp } from "@/lib/h
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   if (!assertOrigin(request)) return jsonError("Invalid origin.", 403);
-  if (!rateLimit(`auth:reset:${ip}`, 5, 60_000)) {
+  if (!(await rateLimit(`auth:reset:${ip}`, 5, 60_000))) {
     return jsonError("Too many requests.", 429);
   }
 

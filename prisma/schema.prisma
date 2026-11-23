@@ -331,3 +331,12 @@ model AiMessage {
 
   @@index([userId, sessionId])
 }
+
+model RateLimitCounter {
+  key         String   @id
+  windowStart DateTime
+  count       Int
+  updatedAt   DateTime @updatedAt
+
+  @@index([windowStart])
+}
