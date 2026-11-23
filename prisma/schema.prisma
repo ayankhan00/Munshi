@@ -87,6 +87,9 @@ model Account {
   type               String   @default("cash") // cash | bank | wallet | credit | other
   currency           String   @default("PKR")
   openingBalanceMinor Int     @default(0)
+  availableMinor      Int     @default(0)
+  incomeMinor         Int     @default(0)
+  expenseMinor        Int     @default(0)
   isDefault          Boolean  @default(false)
   archived           Boolean  @default(false)
   createdAt          DateTime @default(now())

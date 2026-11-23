@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         type: parsed.type,
         currency: parsed.currency,
         openingBalanceMinor: parsed.openingBalanceMinor ?? 0,
+        availableMinor: parsed.openingBalanceMinor ?? 0,
         isDefault: parsed.isDefault ?? false,
       },
     });
@@ -70,6 +71,11 @@ export async function PATCH(request: NextRequest) {
         data: { isDefault: false },
       });
     }
+    const openingDelta =
+      parsed.openingBalanceMinor !== undefined &&
+      parsed.openingBalanceMinor !== existing.openingBalanceMinor
+        ? { availableMinor: { increment: parsed.openingBalanceMinor - existing.openingBalanceMinor } }
+        : {};
     const account = await prisma.account.update({
       where: { id },
       data: {
@@ -77,6 +83,7 @@ export async function PATCH(request: NextRequest) {
         type: parsed.type ?? undefined,
         currency: parsed.currency ?? undefined,
         openingBalanceMinor: parsed.openingBalanceMinor ?? undefined,
+        ...openingDelta,
         isDefault: parsed.isDefault ?? undefined,
         archived: parsed.archived ?? undefined,
       },

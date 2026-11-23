@@ -4,11 +4,24 @@ import { toMinor } from "@/lib/money";
 import { zonedAt } from "@/lib/dates";
 import { DEFAULT_CATEGORIES, resolveCategoryFromText } from "@/lib/categories";
 import { logAudit } from "@/lib/audit";
-import { balanceForAccount } from "@/lib/ledger";
+import { ledgerDeltas, type BalanceDelta } from "@/lib/ledger";
 import type { txCreateSchema } from "@/lib/validation";
 import type { z } from "zod";
 
 export type TxInput = z.input<typeof txCreateSchema>;
+
+async function applyBalanceDeltas(tx: Prisma.TransactionClient, deltas: BalanceDelta[]) {
+  for (const d of deltas) {
+    await tx.account.update({
+      where: { id: d.accountId },
+      data: {
+        availableMinor: { increment: d.availableMinor },
+        incomeMinor: { increment: d.incomeMinor },
+        expenseMinor: { increment: d.expenseMinor },
+      },
+    });
+  }
+}
 
 export async function installDefaultCategories(userId: string): Promise<void> {
   const allowed = new Set(DEFAULT_CATEGORIES.map((c) => `${c.kind}:${c.name}`));
@@ -268,6 +281,7 @@ export async function createTransaction(userId: string, input: TxInput) {
         adjustmentReason: input.type === "adjustment" ? input.reason : undefined,
       },
     });
+    await applyBalanceDeltas(tx, ledgerDeltas(transaction));
     return transaction;
   });
 
@@ -358,31 +372,36 @@ export async function updateTransaction(
       ? new Date(patch.occurredAt)
       : existing.occurredAt;
 
-  const updated = await prisma.transaction.update({
-    where: { id },
-    data: {
-      accountId,
-      categoryId,
-      type: patch.type ?? existing.type,
-      amountMinor: patch.amount !== undefined ? toMinor(patch.amount) : existing.amountMinor,
-      occurredAt,
-      description:
-        patch.description !== undefined
-          ? patch.description.trim() || existing.description
-          : existing.description,
-      notes:
-        patch.notes !== undefined
-          ? patch.notes.trim() || existing.notes
-          : existing.notes,
-      paymentMethod:
-        patch.paymentMethod !== undefined
-          ? patch.paymentMethod.trim() || existing.paymentMethod
-          : existing.paymentMethod,
-      transferAccountId:
-        patch.transferAccountId !== undefined
-          ? (patch.transferAccountId ?? null)
-          : existing.transferAccountId,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.transaction.update({
+      where: { id },
+      data: {
+        accountId,
+        categoryId,
+        type: patch.type ?? existing.type,
+        amountMinor: patch.amount !== undefined ? toMinor(patch.amount) : existing.amountMinor,
+        occurredAt,
+        description:
+          patch.description !== undefined
+            ? patch.description.trim() || existing.description
+            : existing.description,
+        notes:
+          patch.notes !== undefined
+            ? patch.notes.trim() || existing.notes
+            : existing.notes,
+        paymentMethod:
+          patch.paymentMethod !== undefined
+            ? patch.paymentMethod.trim() || existing.paymentMethod
+            : existing.paymentMethod,
+        transferAccountId:
+          patch.transferAccountId !== undefined
+            ? (patch.transferAccountId ?? null)
+            : existing.transferAccountId,
+      },
+    });
+    await applyBalanceDeltas(tx, ledgerDeltas(existing, -1));
+    await applyBalanceDeltas(tx, ledgerDeltas(updated));
+    return updated;
   });
 
   await logAudit({
@@ -411,9 +430,12 @@ export async function deleteTransaction(userId: string, id: string, reason?: str
   });
   if (!existing) throw new Error("Transaction not found");
 
-  await prisma.transaction.update({
-    where: { id },
-    data: { deletedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    await applyBalanceDeltas(tx, ledgerDeltas(existing, -1));
   });
 
   await logAudit({
@@ -480,13 +502,12 @@ const qFilter = filters.q
 }
 
 export async function getCurrentBalance(userId: string) {
-  const [accounts, txns] = await Promise.all([
-    prisma.account.findMany({ where: { userId, archived: false } }),
-    prisma.transaction.findMany({ where: { userId, deletedAt: null } }),
-  ]);
+  const accounts = await prisma.account.findMany({ where: { userId, archived: false } });
   const balances = accounts.map((a) => ({
     account: a,
-    ...balanceForAccount(a.id, a.openingBalanceMinor, txns),
+    availableMinor: a.availableMinor,
+    incomeMinor: a.incomeMinor,
+    expenseMinor: a.expenseMinor,
   }));
   const availableMinor = balances.reduce((s, b) => s + b.availableMinor, 0);
   return {
