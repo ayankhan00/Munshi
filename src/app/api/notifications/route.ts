@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest) {
   });
 }
 
-export async function DELETE(_request: NextRequest) {
+export async function DELETE() {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     return clearNotifications(user.id);

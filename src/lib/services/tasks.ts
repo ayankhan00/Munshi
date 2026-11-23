@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { parseNaturalDateTime, startOfDayZoned, fnAddDays, fnAddMonths, fnAddWeeks } from "@/lib/dates";
+import { parseNaturalDateTime, startOfDayZoned } from "@/lib/dates";
 import { formatInTimeZone } from "date-fns-tz";
 import { logAudit } from "@/lib/audit";
 
@@ -168,4 +168,3 @@ export async function moveTaskToDate(userId: string, id: string, naturalDate: st
   return updateTask(userId, id, { dueAt: parsed.date.toISOString() }, tz);
 }
 
-export { fnAddDays, fnAddMonths, fnAddWeeks };

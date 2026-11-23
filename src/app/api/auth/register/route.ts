@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { createSession, deleteSession } from "@/lib/auth/sessions";
-import { registerSchema, loginSchema, resetRequestSchema, resetConfirmSchema } from "@/lib/validation";
+import { hashPassword } from "@/lib/auth/password";
+import { createSession } from "@/lib/auth/sessions";
+import { registerSchema } from "@/lib/validation";
 import { jsonError, jsonOk, assertOrigin, rateLimit, getClientIp } from "@/lib/http";
 import { env } from "@/lib/env";
-import { randomBytes } from "node:crypto";
 
 function setSessionCookie(res: NextResponse, token: string) {
   const tenDays = 10 * 24 * 60 * 60;

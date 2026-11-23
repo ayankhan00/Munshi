@@ -1,10 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { deleteSession } from "@/lib/auth/sessions";
 import { env } from "@/lib/env";
 import { jsonOk } from "@/lib/http";
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   const store = await cookies();
   const token = store.get(env().sessionCookieName)?.value;
   await deleteSession(token ?? "");

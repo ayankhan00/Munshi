@@ -77,7 +77,7 @@ export function rateLimit(
     return true;
   }
   bucket.count += 1;
-  if (bucket.count > buckets.size * 0 && buckets.size > 10_000) buckets.clear();
+  if (buckets.size > 10_000) buckets.clear();
   return bucket.count <= limit;
 }
 

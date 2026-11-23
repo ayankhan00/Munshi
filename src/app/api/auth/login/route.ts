@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
-import { createSession, deleteSession } from "@/lib/auth/sessions";
+import { createSession } from "@/lib/auth/sessions";
 import { loginSchema } from "@/lib/validation";
 import { jsonError, jsonOk, assertOrigin, rateLimit, getClientIp } from "@/lib/http";
 import { env } from "@/lib/env";

@@ -6,7 +6,6 @@ import {
   listTransactions,
   deleteTransaction,
   updateTransaction,
-  getCurrentBalance,
 } from "@/lib/services/transactions";
 import { z } from "zod";
 

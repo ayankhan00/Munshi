@@ -2,10 +2,10 @@ import { type NextRequest } from "next/server";
 import { unwrapAsync, requireApiUser, ApiError } from "@/lib/api";
 import { settingsSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
-import { jsonError, jsonOk } from "@/lib/http";
+import { jsonOk } from "@/lib/http";
 import { env } from "@/lib/env";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     const profile = await prisma.user.findUnique({
@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest) {
   });
 }
 
-export async function DELETE(_request: NextRequest) {
+export async function DELETE() {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     await prisma.user.delete({ where: { id: user.id } });

@@ -13,7 +13,7 @@ Munshi (Urdu for "assistant") is a personal AI finance, tasks & reminder assista
    `npm install`
 2. Create env:
    `cp .env.example .env` (or on Windows: `copy .env.example .env`)
-   Fill in `DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`, `SESSION_SECRET`, `CRON_SECRET`.
+   Fill in `DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`, `CRON_SECRET`.
 3. Apply migrations (and optionally seed demo data):
    `npx prisma migrate deploy`
    `npm run db:seed`

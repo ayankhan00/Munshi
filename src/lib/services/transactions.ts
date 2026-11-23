@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { toMinor } from "@/lib/money";
-import { zonedAt, periodKey } from "@/lib/dates";
+import { zonedAt } from "@/lib/dates";
 import { DEFAULT_CATEGORIES, resolveCategoryFromText } from "@/lib/categories";
 import { logAudit } from "@/lib/audit";
 import { balanceForAccount } from "@/lib/ledger";
@@ -497,4 +497,3 @@ export async function getCurrentBalance(userId: string) {
 }
 
 
-export { periodKey };

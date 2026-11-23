@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { accountCreateSchema, accountUpdateSchema } from "@/lib/validation";
 import { getCurrentBalance, getDefaultAccount } from "@/lib/services/transactions";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     await getDefaultAccount(user.id);

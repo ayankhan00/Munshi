@@ -3,7 +3,6 @@ import {
   monthRange,
   periodKey,
   currentMonthKey,
-  fnAddMonths,
   startOfDayZoned,
   dateKey,
   fnAddDays,
@@ -351,4 +350,3 @@ export async function savingsOverTime(
   });
 }
 
-export { fnAddMonths };
