@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, formatMoney } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ function describeCadence(rule: RecurringRule): string {
 
 export default function RecurringPage() {
   const [rows, setRows] = useState<RecurringRule[]>([]);
+  const [prefs, setPrefs] = useState({ currency: "PKR", timezone: "Asia/Karachi" });
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,12 +107,14 @@ export default function RecurringPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [catData, accData] = await Promise.all([
+        const [catData, accData, me] = await Promise.all([
           api<{ rows: Category[] }>("/api/categories"),
           api<{ rows: Account[] }>("/api/accounts"),
+          api<{ currency: string; timezone: string }>("/api/me"),
         ]);
         setCategories(catData.rows);
         setAccounts(accData.rows);
+        setPrefs({ currency: me.currency, timezone: me.timezone });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load form data");
       }
@@ -382,13 +386,13 @@ export default function RecurringPage() {
                       </span>
                       {typeof rule.template.amount === "number" ? (
                         <span className="text-sm text-muted-foreground">
-                          {formatMoney(Math.round(rule.template.amount * 100))}
+                          {formatMoney(Math.round(rule.template.amount * 100), prefs.currency)}
                         </span>
                       ) : null}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {describeCadence(rule)} · next{" "}
-                      {new Date(rule.nextRunAt).toLocaleDateString()}
+                      {formatDateTime(new Date(rule.nextRunAt), prefs.timezone)}
                       {rule.template.description ? ` · ${rule.template.description}` : ""}
                       {categoryName(rule.template.categoryId)
                         ? ` · ${categoryName(rule.template.categoryId)}`

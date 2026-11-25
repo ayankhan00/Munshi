@@ -219,7 +219,7 @@ export async function createTransaction(userId: string, input: TxInput) {
 
   if (input.type === "refund") {
     const src = await prisma.transaction.findFirst({
-      where: { id: input.sourceTransactionId, userId, deletedAt: null },
+      where: { id: input.sourceTransactionId ?? "", userId, deletedAt: null },
     });
     if (!src || src.type !== "expense") throw new Error("Source expense not found");
     if (amountMinor > src.amountMinor) {
@@ -246,14 +246,14 @@ export async function createTransaction(userId: string, input: TxInput) {
   const created = await prisma.$transaction(async (tx) => {
     if (input.type === "refund") {
       const src = await tx.transaction.findFirst({
-        where: { id: input.sourceTransactionId, userId, deletedAt: null },
+        where: { id: input.sourceTransactionId ?? "", userId, deletedAt: null },
       });
       if (!src || src.type !== "expense") throw new Error("Source expense not found");
       const refunded = await tx.transaction.aggregate({
         where: {
           userId,
           type: "refund",
-          sourceTransactionId: input.sourceTransactionId,
+          sourceTransactionId: input.sourceTransactionId ?? "",
           deletedAt: null,
         },
         _sum: { amountMinor: true },
@@ -373,13 +373,39 @@ export async function updateTransaction(
       : existing.occurredAt;
 
   const updated = await prisma.$transaction(async (tx) => {
+    const type = patch.type ?? existing.type;
+    const amountMinor = patch.amount !== undefined ? toMinor(patch.amount) : existing.amountMinor;
+    const sourceTransactionId =
+      patch.sourceTransactionId !== undefined ? patch.sourceTransactionId : existing.sourceTransactionId;
+
+    if (type === "refund") {
+      const src = await tx.transaction.findFirst({
+        where: { id: sourceTransactionId ?? "", userId, type: "expense", deletedAt: null },
+      });
+      if (!src) throw new Error("Source expense not found");
+      const refunded = await tx.transaction.aggregate({
+        where: {
+          userId,
+          type: "refund",
+          sourceTransactionId: sourceTransactionId ?? "",
+          deletedAt: null,
+          id: { not: id },
+        },
+        _sum: { amountMinor: true },
+      });
+      if ((refunded._sum.amountMinor ?? 0) + amountMinor > src.amountMinor) {
+        throw new Error("Refund cannot exceed the original expense amount");
+      }
+    }
+
     const updated = await tx.transaction.update({
       where: { id },
       data: {
         accountId,
         categoryId,
-        type: patch.type ?? existing.type,
-        amountMinor: patch.amount !== undefined ? toMinor(patch.amount) : existing.amountMinor,
+        type,
+        amountMinor,
+        sourceTransactionId: type === "refund" ? sourceTransactionId : null,
         occurredAt,
         description:
           patch.description !== undefined
@@ -431,9 +457,17 @@ export async function deleteTransaction(userId: string, id: string, reason?: str
   if (!existing) throw new Error("Transaction not found");
 
   await prisma.$transaction(async (tx) => {
+    const deletedAt = new Date();
+    const refunds = await tx.transaction.findMany({
+      where: { userId, type: "refund", sourceTransactionId: id, deletedAt: null },
+    });
+    for (const refund of refunds) {
+      await applyBalanceDeltas(tx, ledgerDeltas(refund, -1));
+      await tx.transaction.update({ where: { id: refund.id }, data: { deletedAt } });
+    }
     await tx.transaction.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt },
     });
     await applyBalanceDeltas(tx, ledgerDeltas(existing, -1));
   });

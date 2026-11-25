@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
   return unwrapAsync(async () => {
     const user = await requireApiUser();
     if (!(await rateLimit(`ai:${user.id}`, 30, 60_000))) throw new ApiError(429, "Too many requests.");
+    if (!(await rateLimit(`ai:${user.id}:day`, 200, 86_400_000))) {
+      throw new ApiError(429, "Daily AI limit reached.");
+    }
+    if (!(await rateLimit("ai:global:day", 5000, 86_400_000))) {
+      throw new ApiError(429, "Daily AI limit reached.");
+    }
     const body = await request.json().catch(() => ({}));
     const parsed = aiMessageSchema.parse(body);
 

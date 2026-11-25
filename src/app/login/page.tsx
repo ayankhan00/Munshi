@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +28,12 @@ export default function LoginPage() {
       })
       .finally(() => setChecking(false));
   }, [router]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("passwordChanged") === "1") {
+      setNotice("Password changed. Sign in with your new password.");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,6 +77,12 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold">Munshi</h1>
           <p className="text-sm text-muted-foreground">Sign in to your finance assistant</p>
         </div>
+
+        {notice ? (
+          <p role="status" className="mb-4 rounded-md border border-border bg-card p-3 text-sm text-center">
+            {notice}
+          </p>
+        ) : null}
 
         <Card>
           <CardContent className="p-6">

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { formatInTimeZone } from "date-fns-tz";
 import { intentMappedDate } from "@/lib/ai/executor";
 import { dateKey, parseNaturalDateTime } from "@/lib/dates";
 
@@ -26,5 +27,16 @@ describe("calendar date validation", () => {
     const parsed = parseNaturalDateTime("2026-01-31", tz);
     expect(parsed && dateKey(parsed.date, tz)).toBe("2026-01-31");
     expect(() => parseNaturalDateTime("2026-02-30", tz)).toThrow("Invalid date");
+  });
+});
+
+describe("today with a time across a DST change", () => {
+  it("keeps the requested local hour on the spring-forward day", () => {
+    const tz = "America/New_York";
+    // 2026-03-08 01:00 EST; clocks jump to 03:00 EDT later that morning.
+    const now = new Date("2026-03-08T06:00:00.000Z");
+    const parsed = parseNaturalDateTime("today 9am", tz, now);
+    expect(parsed).not.toBeNull();
+    expect(formatInTimeZone(parsed!.date, tz, "yyyy-MM-dd HH:mm")).toBe("2026-03-08 09:00");
   });
 });

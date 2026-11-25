@@ -14,4 +14,17 @@ describe("money", () => {
     expect(() => toMinor(0)).toThrow("Invalid amount");
     expect(() => toMinor(NaN)).toThrow("Invalid amount");
   });
+
+  it("parses decimal strings without float rounding", () => {
+    expect(toMinor("1,234.56")).toBe(123456);
+    expect(toMinor("0.07")).toBe(7);
+    expect(() => toMinor(1.005)).toThrow("Invalid amount");
+    expect(() => toMinor("1.005")).toThrow("Invalid amount");
+  });
+
+  it("accepts the largest Int-backed amount and rejects larger ones", () => {
+    expect(toMinor(21474836.47)).toBe(2147483647);
+    expect(() => toMinor(21474836.48)).toThrow("Amount too large");
+    expect(() => toMinor("21474836.48")).toThrow("Amount too large");
+  });
 });

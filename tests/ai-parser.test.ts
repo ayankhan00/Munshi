@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIntent } from "@/lib/ai/parser";
+import { parseIntent, parseIntents } from "@/lib/ai/parser";
 import { extractAmount, toMinor } from "@/lib/money";
 import { parseNaturalDateTime } from "@/lib/dates";
 import { toZonedTime } from "date-fns-tz";
@@ -58,6 +58,29 @@ describe("ai parser", () => {
 
   it("detects balance queries", () => {
     expect(parseIntent("What is my balance?").kind).toBe("query_balance");
+  });
+
+  it("treats paying a credit card balance as an expense, not a balance query", () => {
+    const intent = parseIntent("I paid my credit card balance 500");
+    expect(intent.kind).toBe("create_expense");
+    if (intent.kind === "create_expense") expect(intent.amount).toBe(500);
+  });
+
+  it("splits one utterance into separate expense intents", () => {
+    const intents = parseIntents("I spent 100 on lunch and 200 on dinner");
+    expect(intents.map((i) => i.kind)).toEqual(["create_expense", "create_expense"]);
+    expect(intents.map((i) => (i.kind === "create_expense" ? i.amount : undefined))).toEqual([
+      100, 200,
+    ]);
+    expect(
+      intents.map((i) => (i.kind === "create_expense" ? i.description : undefined)),
+    ).toEqual(["lunch", "dinner"]);
+  });
+
+  it("keeps a spoken compound amount joined by 'and' as one expense", () => {
+    const intents = parseIntents("I spent 500 and 73 on tea");
+    expect(intents).toHaveLength(1);
+    if (intents[0].kind === "create_expense") expect(intents[0].amount).toBe(573);
   });
 
   it("detects income with amount", () => {

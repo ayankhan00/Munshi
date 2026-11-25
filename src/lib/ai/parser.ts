@@ -81,13 +81,20 @@ export function findAmount(text: string): number | undefined {
 export function parseIntent(raw: string): ParsedIntent {
   const text = raw.trim();
   const lower = text.toLowerCase();
+  const hasExpenseWord = hasAnyWord(lower, EXPENSE_WORDS);
+  const hasIncomeWord = hasAnyWord(lower, INCOME_WORDS);
+  const amount = findAmount(text);
 
   if (/\b(help|menu|what can you do|kya kar sakte ho|مدد)\b/.test(lower)) {
     return { kind: "help", raw };
   }
 
   if (/\b(balance|total money|kitna hai|pesay|پیسے|kitni raqam)\b/.test(lower)) {
-    return { kind: "query_balance", raw };
+    if (amount === undefined && !hasExpenseWord && !hasIncomeWord) {
+      return { kind: "query_balance", raw };
+    }
+    // "paid my credit card balance 500" is a payment, not a balance query.
+    if (amount !== undefined && hasExpenseWord) return parseExpenseLike(text, "expense");
   }
 
   const hasTransfer = /\b(transfer|move|send|shift)\b/.test(lower);
@@ -113,10 +120,6 @@ export function parseIntent(raw: string): ParsedIntent {
   if (/\b(how much.*(earn|income)|kitni income|آمد)\b/.test(lower)) {
     return { kind: "query_income", raw };
   }
-
-  const hasExpenseWord = hasAnyWord(lower, EXPENSE_WORDS);
-  const hasIncomeWord = hasAnyWord(lower, INCOME_WORDS);
-  const amount = findAmount(text);
 
   if (hasIncomeWord && amount !== undefined) {
     return parseExpenseLike(text, "income");
@@ -144,6 +147,46 @@ export function parseIntent(raw: string): ParsedIntent {
   }
 
   return { kind: "unknown", raw };
+}
+
+// One utterance can carry several transactions ("spent 100 on lunch and 200
+// on dinner"). Split on the conjunction and lend the first verb to the later
+// amount-only fragments so each one still parses as its own transaction.
+export function parseIntents(raw: string, history: ChatHistoryTurn[] = []): ParsedIntent[] {
+  const text = raw.trim();
+  if (isFollowUpMessage(text, history)) return [parseIntentWithContext(text, history)];
+
+  const segments = text
+    .split(/\s+and\s+|\s*,\s*/i)
+    .map((segment) => segment.replace(/^and\s+/i, "").trim())
+    .filter((segment) => findAmount(segment) !== undefined);
+  if (segments.length < 2) return [parseIntent(text)];
+  // "spent 500 and 73" is one spoken amount, not two transactions.
+  if (/\d\s*$/.test(segments[0])) return [parseIntent(text)];
+
+  const first = parseIntent(segments[0]);
+  if (
+    first.kind !== "create_expense" &&
+    first.kind !== "create_income" &&
+    first.kind !== "create_transfer"
+  ) {
+    return [parseIntent(text)];
+  }
+
+  const verb =
+    first.kind === "create_transfer"
+      ? "transfer"
+      : first.kind === "create_expense"
+        ? "spent"
+        : "received";
+  const hasVerb = (segment: string) =>
+    /\b(transfer|move|send|shift)\b/i.test(segment) ||
+    hasAnyWord(segment.toLowerCase(), [...EXPENSE_WORDS, ...INCOME_WORDS]);
+
+  const intents = segments.map((segment) =>
+    parseIntent(hasVerb(segment) ? segment : `${verb} ${segment}`),
+  );
+  return intents.some((intent) => intent.kind === "unknown") ? [parseIntent(text)] : intents;
 }
 
 function stripCurrency(text: string): string {
@@ -184,7 +227,6 @@ function parseExpenseLike(text: string, kind: "expense" | "income"): ParsedInten
     categoryName: category?.name,
     description: description || category?.name || "Expense",
     date: dateMatch?.[1].toLowerCase(),
-    priority: /\b(important|urgent|high)\b/i.test(text) ? "high" : undefined,
   };
 }
 

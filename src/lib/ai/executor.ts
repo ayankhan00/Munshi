@@ -6,6 +6,7 @@ import { createReminder } from "@/lib/services/reminders";
 import { currentMonthKey, formatDateTime, dateKey } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { parseNaturalDateTime } from "@/lib/dates";
+import { moneyAmountSchema } from "@/lib/validation";
 import type { ParsedIntent } from "./types";
 
 export interface ExecutorContext {
@@ -19,6 +20,11 @@ export interface ExecutorResult {
   intent: string;
   action?: "transaction" | "task" | "reminder";
   data?: unknown;
+}
+
+// moneyAmountSchema permits sub-paisa values, which would round to zero on write.
+export function isValidAmount(amount: number | undefined): boolean {
+  return amount === undefined || (amount >= 0.01 && moneyAmountSchema.safeParse(amount).success);
 }
 
 export async function executeIntent(intent: ParsedIntent, ctx: ExecutorContext): Promise<ExecutorResult> {
@@ -70,6 +76,9 @@ async function executeExpense(
       reply: `I couldn't find an amount. Please say the amount, e.g. "Add expense 500 for lunch".`,
       intent: intent.kind,
     };
+  }
+  if (!isValidAmount(intent.amount)) {
+    return { reply: "That amount isn't valid.", intent: intent.kind };
   }
 
   const type = intent.kind === "create_expense" ? "expense" : "income";
@@ -149,6 +158,9 @@ async function executeTransfer(
   if (!intent.amount) {
     return { reply: "Please include an amount to transfer.", intent: intent.kind };
   }
+  if (!isValidAmount(intent.amount)) {
+    return { reply: "That amount isn't valid.", intent: intent.kind };
+  }
   const accounts = await prisma.account.findMany({
     where: { userId: ctx.userId, archived: false },
   });
@@ -165,6 +177,10 @@ async function executeTransfer(
   const to = intent.toAccount
     ? accounts.find((a) => a.name.toLowerCase().includes(intent.toAccount!.toLowerCase()))
     : undefined;
+
+  if ((intent.fromAccount && !from) || (intent.toAccount && !to)) {
+    return { reply: "Which account?", intent: intent.kind };
+  }
 
   const fromId = from?.id ?? accounts.find((a) => a.isDefault)?.id ?? accounts[0].id;
   const toId = to?.id ?? accounts.find((a) => a.id !== fromId)?.id;
@@ -203,6 +219,10 @@ async function executeUpdate(
       reply: "I couldn't tell which transaction you want to change. Please say it again.",
       intent: intent.kind,
     };
+  }
+
+  if (intent.amount !== undefined && !isValidAmount(intent.amount)) {
+    return { reply: "That amount isn't valid.", intent: intent.kind };
   }
 
   const patch: Partial<TxInput> = {};

@@ -41,13 +41,13 @@ export const txTypes = [
   "adjustment",
 ] as const;
 
+// Largest amount whose minor units still fit a Postgres Int.
+export const moneyAmountSchema = z.number().finite().gt(0).max(21474836.47);
+
 export const txCreateSchema = z
   .object({
     type: z.enum(txTypes),
-    amount: z.number().finite().refine(
-      (n) => n > 0 && n < 1e10,
-      "Amount must be greater than zero",
-    ),
+    amount: moneyAmountSchema,
     description: z.string().trim().max(200).optional().default(""),
     notes: z.string().trim().max(1000).optional().default(""),
     paymentMethod: z.string().trim().max(60).optional(),

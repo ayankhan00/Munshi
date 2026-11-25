@@ -22,6 +22,12 @@ import {
   Bell,
 } from "lucide-react";
 import { api, clearCache } from "@/lib/client-api";
+import {
+  applyTheme,
+  isTheme,
+  removeStoredTheme,
+  setStoredTheme,
+} from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -66,6 +72,14 @@ export default function AppShell({
       .catch(() => undefined);
   }, [user]);
 
+  // The server preference wins for signed-in users (shared-device privacy).
+  useEffect(() => {
+    if (isTheme(me?.theme)) {
+      setStoredTheme(me.theme);
+      applyTheme(me.theme);
+    }
+  }, [me?.theme]);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -74,6 +88,7 @@ export default function AppShell({
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      removeStoredTheme();
       clearCache();
       router.push("/login");
     }
@@ -145,7 +160,7 @@ export default function AppShell({
       {open ? (
         <div className="fixed inset-0 z-20 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-border bg-card pt-14">
+          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col overflow-y-auto border-r border-border bg-card pt-14">
             <div className="py-4">{nav}</div>
             {footer}
           </aside>

@@ -93,12 +93,10 @@ export async function rateLimit(
 
 export function getClientIp(request: Request): string {
   // Only trust Vercel's own header when actually running on Vercel; elsewhere
-  // a client could set it itself and get a fresh rate-limit bucket per request.
+  // client-set forwarding headers would give every request a fresh bucket.
   if (process.env.VERCEL === "1") {
     const vercel = request.headers.get("x-vercel-forwarded-for");
     if (vercel) return vercel.split(",")[0].trim();
   }
-  const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return "unknown";
 }

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Bot,
   History,
@@ -26,6 +27,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   intent?: string;
+  action?: string;
 }
 
 interface ChatSession {
@@ -54,6 +56,22 @@ const SUGGESTIONS = [
   "Add task pay electricity bill by tomorrow",
   "Remind me to call mom at 6pm tomorrow",
 ];
+
+const MUTATION_LINKS: Record<string, { href: string; label: string }> = {
+  transaction: { href: "/transactions", label: "View transactions" },
+  create_expense: { href: "/transactions", label: "View transactions" },
+  create_income: { href: "/transactions", label: "View transactions" },
+  create_transfer: { href: "/transactions", label: "View transactions" },
+  update_transaction: { href: "/transactions", label: "View transactions" },
+  task: { href: "/tasks", label: "View tasks" },
+  create_task: { href: "/tasks", label: "View tasks" },
+  reminder: { href: "/calendar", label: "View reminders" },
+  create_reminder: { href: "/calendar", label: "View reminders" },
+};
+
+function mutationLink(intent?: string, action?: string) {
+  return (action && MUTATION_LINKS[action]) || (intent && MUTATION_LINKS[intent]) || null;
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -256,6 +274,7 @@ export default function AssistantPage() {
       const res = await api<{
         reply: string;
         intent: string;
+        action?: string;
         usedGemini: boolean;
         sessionId: string;
       }>("/api/assistant", {
@@ -267,7 +286,7 @@ export default function AssistantPage() {
       window.localStorage.setItem(SESSION_KEY, res.sessionId);
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: res.reply, intent: res.intent },
+        { role: "assistant", content: res.reply, intent: res.intent, action: res.action },
       ]);
       void loadSessions();
     } catch (err) {
@@ -337,6 +356,7 @@ export default function AssistantPage() {
         transcript: string;
         reply: string;
         intent: string;
+        action?: string;
         usedGemini: boolean;
         sessionId: string;
       }>("/api/assistant/voice", {
@@ -356,7 +376,7 @@ export default function AssistantPage() {
       window.localStorage.setItem(SESSION_KEY, res.sessionId);
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: res.reply, intent: res.intent },
+        { role: "assistant", content: res.reply, intent: res.intent, action: res.action },
       ]);
       void loadSessions();
     } catch (err) {
@@ -560,7 +580,7 @@ export default function AssistantPage() {
         </Card>
 
         <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-4 overflow-y-auto p-5">
+          <div className="flex-1 space-y-4 overflow-y-auto p-5" role="log" aria-live="polite">
             {bootstrapping ? (
               <LoadingState label="Loading your conversation..." />
             ) : messages.length === 0 ? (
@@ -584,7 +604,9 @@ export default function AssistantPage() {
                 </div>
               </div>
             ) : (
-              messages.map((m, i) => (
+              messages.map((m, i) => {
+                const link = m.role === "assistant" ? mutationLink(m.intent, m.action) : null;
+                return (
                 <div
                   key={i}
                   className={cn(
@@ -620,9 +642,15 @@ export default function AssistantPage() {
                         intent: {m.intent}
                       </p>
                     ) : null}
+                    {link ? (
+                      <Link href={link.href} className="mt-1.5 inline-block text-xs underline">
+                        {link.label} &rarr;
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -653,6 +681,7 @@ export default function AssistantPage() {
             <form onSubmit={handleSubmit} className="flex items-center gap-2 p-3">
             <Input
               type="text"
+              aria-label="Message"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={

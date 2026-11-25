@@ -10,6 +10,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
 
+function passwordProblem(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters.";
+  if (!/[a-z]/.test(password)) return "Add at least one lowercase letter.";
+  if (!/[A-Z]/.test(password)) return "Add at least one uppercase letter.";
+  if (!/[0-9]/.test(password)) return "Add at least one number.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Add at least one special character.";
+  return null;
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [token, setToken] = useState("");
@@ -29,6 +38,11 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     if (password !== confirm) {
       setError("Passwords do not match.");
+      return;
+    }
+    const problem = passwordProblem(password);
+    if (problem) {
+      setError(problem);
       return;
     }
     setLoading(true);
@@ -53,7 +67,8 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const ready = password.length >= 8 && confirm.length >= 8 && token.length > 0;
+  const problem = passwordProblem(password);
+  const ready = !problem && password === confirm && token.length > 0;
 
   return (
     <div className="grid min-h-screen place-items-center bg-muted/30 p-4">
@@ -78,7 +93,7 @@ export default function ResetPasswordPage() {
                 </p>
               ) : null}
               <FieldGroup>
-                <Label htmlFor="password">New password (min 8 chars)</Label>
+                <Label htmlFor="password">New password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -102,6 +117,14 @@ export default function ResetPasswordPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {password && problem ? (
+                  <p className="text-xs text-destructive" role="alert">{problem}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    At least 8 characters with an uppercase, lowercase, number and special
+                    character.
+                  </p>
+                )}
               </FieldGroup>
               <FieldGroup>
                 <Label htmlFor="confirm">Confirm password</Label>
@@ -129,8 +152,8 @@ export default function ResetPasswordPage() {
                   </Button>
                 </div>
               </FieldGroup>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
+              {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+              {message ? <p className="text-sm text-emerald-600" role="status">{message}</p> : null}
               <Button type="submit" disabled={loading || !ready}>
                 {loading ? "Updating..." : "Update password"}
               </Button>

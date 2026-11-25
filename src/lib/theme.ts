@@ -37,3 +37,12 @@ export function setStoredTheme(theme: Theme): void {
     // ignore storage failures (private mode)
   }
 }
+
+export function removeStoredTheme(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(THEME_KEY);
+  } catch {
+    // ignore storage failures (private mode)
+  }
+}
