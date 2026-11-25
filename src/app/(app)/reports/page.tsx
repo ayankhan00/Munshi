@@ -115,6 +115,7 @@ function monthOptions(): string[] {
 
 export default function ReportsPage() {
   const [month, setMonth] = useState(monthOptions()[0]);
+  const [currency, setCurrency] = useState("PKR");
   const [data, setData] = useState<ReportOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -138,6 +139,7 @@ export default function ReportsPage() {
     ).padStart(2, "0")}`;
   });
   const [rangeReport, setRangeReport] = useState<RangeReport | null>(null);
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [rangeLoading, setRangeLoading] = useState(false);
 
   const load = useCallback(async (key: string) => {
@@ -186,12 +188,19 @@ export default function ReportsPage() {
         `/api/reports?kind=range&from=${rangeFrom}&to=${rangeTo}`,
       );
       setRangeReport(result);
+      setAppliedRange({ from: rangeFrom, to: rangeTo });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load range report");
     } finally {
       setRangeLoading(false);
     }
   }, [rangeFrom, rangeTo]);
+
+  useEffect(() => {
+    api<{ currency: string }>("/api/me")
+      .then((me) => setCurrency(me.currency))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -234,7 +243,10 @@ export default function ReportsPage() {
       <PageHeader title="Reports" description="Understand where your money goes.">
         <Select
           value={month}
-          onChange={(e) => setMonth(e.target.value)}
+          onChange={(e) => {
+            setMonth(e.target.value);
+            setAppliedRange(null);
+          }}
           className="w-40 print:hidden"
         >
           {monthOptions().map((o) => (
@@ -244,7 +256,11 @@ export default function ReportsPage() {
           ))}
         </Select>
         <a
-          href={`/api/export/transactions?month=${month}`}
+          href={
+            appliedRange
+              ? `/api/export/transactions?from=${appliedRange.from}&to=${appliedRange.to}`
+              : `/api/export/transactions?month=${month}`
+          }
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
           <Download className="h-4 w-4" />
@@ -276,7 +292,7 @@ export default function ReportsPage() {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Income</p>
                 <p className="mt-1 text-2xl font-semibold text-emerald-600">
-                  {formatMoney(income)}
+                  {formatMoney(income, currency)}
                 </p>
               </CardContent>
             </Card>
@@ -284,7 +300,7 @@ export default function ReportsPage() {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Expenses</p>
                 <p className="mt-1 text-2xl font-semibold text-destructive">
-                  {formatMoney(expense)}
+                  {formatMoney(expense, currency)}
                 </p>
               </CardContent>
             </Card>
@@ -298,7 +314,7 @@ export default function ReportsPage() {
                       : "mt-1 text-2xl font-semibold text-destructive"
                   }
                 >
-                  {formatMoney(net)}
+                  {formatMoney(net, currency)}
                 </p>
               </CardContent>
             </Card>
@@ -306,7 +322,7 @@ export default function ReportsPage() {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Balance</p>
                 <p className="mt-1 text-2xl font-semibold">
-                  {formatMoney(data!.balance.availableMinor, data!.currency)}
+                  {formatMoney(data!.balance.availableMinor, currency)}
                 </p>
               </CardContent>
             </Card>
@@ -341,7 +357,7 @@ export default function ReportsPage() {
                             />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => formatMoney(value)} />
+                        <Tooltip formatter={(value: number) => formatMoney(value, currency)} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -375,14 +391,14 @@ export default function ReportsPage() {
                   <div className="rounded-lg bg-muted/40 px-4 py-3">
                     <p className="text-xs text-muted-foreground">Total spent</p>
                     <p className="mt-0.5 text-xl font-semibold text-destructive">
-                      {formatMoney(trendTotal)}
+                      {formatMoney(trendTotal, currency)}
                     </p>
                   </div>
                   <div className="rounded-lg bg-muted/40 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
                       {trend?.granularity === "week" ? "Weekly average" : "Daily average"}
                     </p>
-                    <p className="mt-0.5 text-xl font-semibold">{formatMoney(trendAvg)}</p>
+                    <p className="mt-0.5 text-xl font-semibold">{formatMoney(trendAvg, currency)}</p>
                   </div>
                 </div>
 
@@ -419,11 +435,11 @@ export default function ReportsPage() {
                           tickLine={false}
                           axisLine={false}
                           width={58}
-                          tickFormatter={(v: number) => formatMoney(v)}
+                          tickFormatter={(v: number) => formatMoney(v, currency)}
                         />
                         <Tooltip
                           cursor={{ fill: "rgba(148, 163, 184, 0.15)" }}
-                          formatter={(value: number) => [formatMoney(value), "Expenses"]}
+                          formatter={(value: number) => [formatMoney(value, currency), "Expenses"]}
                           contentStyle={{ borderRadius: 8, fontSize: 12 }}
                         />
                         <Bar
@@ -478,10 +494,10 @@ export default function ReportsPage() {
                         tickLine={false}
                         axisLine={false}
                         width={58}
-                        tickFormatter={(v: number) => formatMoney(v)}
+                        tickFormatter={(v: number) => formatMoney(v, currency)}
                       />
                       <Tooltip
-                        formatter={(value: number) => [formatMoney(value), "Cumulative savings"]}
+                        formatter={(value: number) => [formatMoney(value, currency), "Cumulative savings"]}
                         contentStyle={{ borderRadius: 8, fontSize: 12 }}
                       />
                       <Area
@@ -521,7 +537,7 @@ export default function ReportsPage() {
                           {c.name}
                           <span className="text-xs text-muted-foreground">{c.percent}%</span>
                         </span>
-                        <span className="font-medium tabular-nums">{formatMoney(c.minor)}</span>
+                        <span className="font-medium tabular-nums">{formatMoney(c.minor, currency)}</span>
                       </>
                     );
                     return (
@@ -582,13 +598,13 @@ export default function ReportsPage() {
                     <div className="rounded-lg bg-muted/40 px-4 py-3">
                       <p className="text-xs text-muted-foreground">Income</p>
                       <p className="mt-0.5 text-xl font-semibold text-emerald-600">
-                        {formatMoney(rangeReport.summary.incomeMinor)}
+                        {formatMoney(rangeReport.summary.incomeMinor, currency)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/40 px-4 py-3">
                       <p className="text-xs text-muted-foreground">Expenses</p>
                       <p className="mt-0.5 text-xl font-semibold text-destructive">
-                        {formatMoney(rangeReport.summary.expenseMinor)}
+                        {formatMoney(rangeReport.summary.expenseMinor, currency)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/40 px-4 py-3">
@@ -600,7 +616,7 @@ export default function ReportsPage() {
                             : "mt-0.5 text-xl font-semibold text-destructive"
                         }
                       >
-                        {formatMoney(rangeReport.summary.netMinor)}
+                        {formatMoney(rangeReport.summary.netMinor, currency)}
                       </p>
                     </div>
                   </div>
@@ -624,7 +640,7 @@ export default function ReportsPage() {
                               </span>
                             </span>
                             <span className="font-medium tabular-nums">
-                              {formatMoney(t.amountMinor)}
+                              {formatMoney(t.amountMinor, currency)}
                             </span>
                           </li>
                         ))}

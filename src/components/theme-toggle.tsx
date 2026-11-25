@@ -23,16 +23,10 @@ export function ThemeToggle({ initial }: { initial?: string }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("munshi:theme");
-    const resolved = isTheme(stored)
-      ? stored
-      : isTheme(initial)
-        ? initial
-        : "system";
+    const resolved = isTheme(initial) ? initial : isTheme(stored) ? stored : "system";
     setTheme(resolved);
-    if (!isTheme(stored)) {
-      setStoredTheme(resolved);
-      applyTheme(resolved);
-    }
+    setStoredTheme(resolved);
+    applyTheme(resolved);
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       if (getStoredTheme() === "system") applyTheme("system");

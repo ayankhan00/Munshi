@@ -163,9 +163,8 @@ export function parseNaturalDateTime(
   const today = startOfDay(zonedNow);
 
   if (/\btoday\b/.test(text) || text.includes("aaj")) {
-    const base = zonedAt(tz, today.getFullYear(), today.getMonth(), today.getDate());
     return {
-      date: time ? new Date(base.getTime() + (time.hour * 3600 + time.minute * 60) * 1000) : base,
+      date: zonedAt(tz, today.getFullYear(), today.getMonth(), today.getDate(), time?.hour, time?.minute),
       hadDate: true,
       hadTime: !!time,
     };
@@ -252,4 +251,4 @@ export function parseNaturalDateTime(
 }
 
 
-export { fnAddDays, fnAddMonths, fnAddWeeks };
+export { fnAddDays, fnAddMonths, fnAddWeeks, toZonedTime };

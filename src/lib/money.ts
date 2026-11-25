@@ -1,13 +1,19 @@
 export const MINOR_PER_UNIT = 100;
+export const MAX_MINOR = 2_147_483_647; // largest Postgres Int: 21,474,836.47
 
 export function toMinor(amount: number | string): number {
-  const n =
-    typeof amount === "string"
-      ? parseFloat(amount.replace(/[,\s\u00a0]/g, ""))
-      : amount;
-  if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid amount");
-  if (n > 1e10) throw new Error("Amount too large");
-  return Math.round(n * MINOR_PER_UNIT);
+  const cleaned = typeof amount === "string" ? amount.replace(/[,\s\u00a0]/g, "") : String(amount);
+  const match = /^(\d*)(?:\.(\d{1,2}))?$/.exec(cleaned);
+  if (!match) {
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid amount");
+    throw new Error(n > MAX_MINOR / MINOR_PER_UNIT ? "Amount too large" : "Invalid amount");
+  }
+  // Convert digits directly so values like 1.005 cannot round into 1.00.
+  const minor = Number(match[1]) * MINOR_PER_UNIT + Number((match[2] ?? "").padEnd(2, "0"));
+  if (minor <= 0) throw new Error("Invalid amount");
+  if (minor > MAX_MINOR) throw new Error("Amount too large");
+  return minor;
 }
 
 export function fromMinor(minor: number): number {

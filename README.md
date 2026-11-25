@@ -24,7 +24,7 @@ Demo account (after seeding): `demo@local.test` / `password123`
 
 ## Production (Vercel + Supabase)
 - Set all env vars from `.env.example`. Use the Supabase **transaction pooler** (port 6543, `?pgbouncer=true&connection_limit=1`) for `DATABASE_URL` and the **session pooler** (port 5432) for `DIRECT_URL`.
-- Deploys run `prisma migrate deploy` automatically via the build script.
+- Run `npm run db:deploy` as an explicit release step after the build; preview builds do not migrate the database.
 - Cron: `GET /api/cron/run` with `Authorization: Bearer $CRON_SECRET`.
 - Web Push is optional; in-app notifications work without it.
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { api, formatMoney } from "@/lib/client-api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Label, FieldGroup } from "@/components/ui/label";
@@ -277,7 +277,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add transaction</CardTitle>
+          <h2 className="text-base font-semibold leading-tight">Add transaction</h2>
         </CardHeader>
         <CardContent>
           <form
@@ -391,7 +391,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent transactions</CardTitle>
+          <h2 className="text-base font-semibold leading-tight">Recent transactions</h2>
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -626,6 +626,9 @@ export default function TransactionsPage() {
         <div
           className="fixed inset-0 z-50 !m-0 flex items-center justify-center bg-black/50 p-4"
           onClick={closeEdit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") closeEdit();
+          }}
         >
           <div
             role="dialog"
@@ -645,6 +648,7 @@ export default function TransactionsPage() {
               </div>
               <button
                 type="button"
+                autoFocus
                 onClick={closeEdit}
                 className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Close"

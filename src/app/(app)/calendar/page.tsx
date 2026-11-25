@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, Repeat, Trash2 } from "lucide-react";
 import { api } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function CalendarPage() {
   const [rows, setRows] = useState<ReminderRow[]>([]);
+  const [timezone, setTimezone] = useState("Asia/Karachi");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +58,12 @@ export default function CalendarPage() {
     const data = await api<{ rows: ReminderRow[] }>(url);
     setRows(data.rows);
   }, [filter]);
+
+  useEffect(() => {
+    api<{ timezone: string }>("/api/me")
+      .then((me) => setTimezone(me.timezone))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -260,11 +268,11 @@ export default function CalendarPage() {
                       ) : null}
                       <p
                         className={cn(
-                          "text-xs",
+                          "truncate text-[11px] sm:text-xs",
                           isPast ? "text-destructive" : "text-muted-foreground",
                         )}
                       >
-                        {new Date(r.remindAt).toLocaleString()}
+                        {formatDateTime(new Date(r.remindAt), timezone)}
                       </p>
                     </div>
                     {r.status === "pending" ? (

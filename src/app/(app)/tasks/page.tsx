@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const PRIORITY_TONE: Record<string, "success" | "warning" | "danger" | "default"
 
 export default function TasksPage() {
   const [rows, setRows] = useState<TaskRow[]>([]);
+  const [timezone, setTimezone] = useState("Asia/Karachi");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +54,12 @@ export default function TasksPage() {
     const data = await api<{ rows: TaskRow[] }>(url);
     setRows(data.rows);
   }, [filter]);
+
+  useEffect(() => {
+    api<{ timezone: string }>("/api/me")
+      .then((me) => setTimezone(me.timezone))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -227,15 +235,15 @@ export default function TasksPage() {
                     >
                       {t.title}
                     </p>
+                    {t.dueAt ? (
+                      <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+                        Due {formatDateTime(new Date(t.dueAt), timezone)}
+                      </p>
+                    ) : null}
                     {t.description ? (
                       <p className="truncate text-xs text-muted-foreground">{t.description}</p>
                     ) : null}
                   </div>
-                  {t.dueAt ? (
-                    <span className="hidden text-xs text-muted-foreground sm:inline">
-                      {new Date(t.dueAt).toLocaleString()}
-                    </span>
-                  ) : null}
                   <Badge tone={PRIORITY_TONE[t.priority] ?? "default"}>{t.priority}</Badge>
                   <Button
                     size="icon"

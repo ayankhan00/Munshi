@@ -20,6 +20,7 @@ describe("shared rate limits", () => {
       headers: {
         "x-vercel-forwarded-for": "1.2.3.4",
         "x-forwarded-for": "9.9.9.9",
+        "x-real-ip": "8.8.8.8",
       },
     });
     const original = process.env.VERCEL;
@@ -30,6 +31,10 @@ describe("shared rate limits", () => {
       if (original === undefined) delete process.env.VERCEL;
       else process.env.VERCEL = original;
     }
-    expect(getClientIp(request)).toBe("9.9.9.9");
+    // Spoofed forwarding headers must not create a fresh bucket off Vercel.
+    expect(getClientIp(request)).toBe("unknown");
+    expect(getClientIp(new Request("http://localhost/api", {
+      headers: { "x-forwarded-for": "9.9.9.9", "x-real-ip": "8.8.8.8" },
+    }))).toBe("unknown");
   });
 });

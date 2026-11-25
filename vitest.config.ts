@@ -10,8 +10,8 @@ export default defineConfig({
     environment: "node",
     testTimeout: 60_000,
     fileParallelism: false,
-    globalSetup: ["./tests/global-setup.ts"],
-    setupFiles: ["./tests/setup.ts"],
+    // Projects are defined in vitest.workspace.ts (required by Vitest 2.1).
+    include: [],
   },
   resolve: {
     alias: {

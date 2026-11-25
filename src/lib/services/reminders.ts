@@ -1,5 +1,12 @@
 ﻿import { prisma } from "@/lib/db";
-import { parseNaturalDateTime, fnAddDays, fnAddMonths, fnAddWeeks } from "@/lib/dates";
+import {
+  parseNaturalDateTime,
+  fnAddDays,
+  fnAddMonths,
+  fnAddWeeks,
+  toZonedTime,
+  zonedAt,
+} from "@/lib/dates";
 import { notifyInApp, sendPushForUser } from "@/lib/notifications";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -151,7 +158,31 @@ function nextOccurrence(date: Date, recurrence: string): Date | null {
   }
 }
 
+function quietWindowEnd(
+  now: Date,
+  tz: string,
+  start: number | null,
+  end: number | null,
+): Date | null {
+  if (start === null || end === null || start === end) return null;
+  const local = toZonedTime(now, tz);
+  const hour = local.getHours();
+  const crossesMidnight = start > end;
+  const inside = crossesMidnight
+    ? hour >= start || hour < end
+    : hour >= start && hour < end;
+  if (!inside) return null;
+  const endDay = crossesMidnight && hour >= start ? fnAddDays(local, 1) : local;
+  return zonedAt(tz, endDay.getFullYear(), endDay.getMonth(), endDay.getDate(), end, 0);
+}
+
 export async function processDueReminders(now = new Date()) {
+  // A crashed worker can leave rows claimed as "sending"; retry them later.
+  await prisma.reminder.updateMany({
+    where: { status: "sending", updatedAt: { lt: new Date(now.getTime() - 10 * 60_000) } },
+    data: { status: "pending" },
+  });
+
   const due = await prisma.reminder.findMany({
     where: { status: "pending", remindAt: { lte: now } },
     take: 200,
@@ -161,44 +192,73 @@ export async function processDueReminders(now = new Date()) {
 
   let sent = 0;
   for (const reminder of due) {
-    if (reminder.user.notificationsEnabled !== false) {
-      await notifyInApp(
-        reminder.userId,
-        reminder.title,
-        reminder.body ?? undefined,
-        reminder.type === "bill" || reminder.type === "budget" ? "warning" : "reminder",
-        "/calendar",
-        reminder.id,
+    const claimed = await prisma.reminder.updateMany({
+      where: { id: reminder.id, status: "pending", remindAt: { lte: now } },
+      data: { status: "sending" },
+    });
+    if (claimed.count === 0) continue;
+
+    try {
+      const tz = reminder.user.timezone || "UTC";
+      const quietUntil = quietWindowEnd(
+        now,
+        tz,
+        reminder.user.quietHoursStart,
+        reminder.user.quietHoursEnd,
       );
-      await sendPushForUser(reminder.userId, {
-        title: reminder.title,
-        body: reminder.body ?? undefined,
-        url: "/calendar",
-      });
-    }
-
-    const next = reminder.recurrence
-      ? nextOccurrence(reminder.remindAt, reminder.recurrence)
-      : null;
-
-    if (next) {
-      const dedupeKey = reminderDedupeKey(reminder.title, next);
-      await prisma.reminder.update({
-        where: { id: reminder.id },
-        data: { remindAt: next, lastSentAt: now, dedupeKey },
-      }).catch(async () => {
+      if (quietUntil) {
         await prisma.reminder.update({
           where: { id: reminder.id },
-          data: { status: "done", lastSentAt: now },
+          data: { status: "pending", remindAt: quietUntil },
         });
-      });
-    } else {
+        continue;
+      }
+
+      if (reminder.user.notificationsEnabled !== false) {
+        await notifyInApp(
+          reminder.userId,
+          reminder.title,
+          reminder.body ?? undefined,
+          reminder.type === "bill" || reminder.type === "budget" ? "warning" : "reminder",
+          "/calendar",
+          reminder.id,
+        );
+        await sendPushForUser(reminder.userId, {
+          title: reminder.title,
+          body: reminder.body ?? undefined,
+          url: "/calendar",
+        });
+      }
+
+      const next = reminder.recurrence
+        ? nextOccurrence(reminder.remindAt, reminder.recurrence)
+        : null;
+
+      if (next) {
+        const dedupeKey = reminderDedupeKey(reminder.title, next);
+        await prisma.reminder.update({
+          where: { id: reminder.id },
+          data: { status: "pending", remindAt: next, lastSentAt: now, dedupeKey },
+        }).catch(async () => {
+          await prisma.reminder.update({
+            where: { id: reminder.id },
+            data: { status: "done", lastSentAt: now },
+          });
+        });
+      } else {
+        await prisma.reminder.update({
+          where: { id: reminder.id },
+          data: { status: "sent", lastSentAt: now },
+        });
+      }
+      sent += 1;
+    } catch (err) {
       await prisma.reminder.update({
         where: { id: reminder.id },
-        data: { status: "sent", lastSentAt: now },
-      });
+        data: { status: "pending" },
+      }).catch(() => undefined);
+      throw err;
     }
-    sent += 1;
   }
 
   return { checked: due.length, sent };

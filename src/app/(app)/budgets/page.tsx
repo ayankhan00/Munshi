@@ -34,6 +34,7 @@ interface Category {
 
 export default function BudgetsPage() {
   const [period, setPeriod] = useState("");
+  const [currency, setCurrency] = useState("PKR");
   const [rows, setRows] = useState<BudgetRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,11 +59,13 @@ export default function BudgetsPage() {
     setPeriod(key);
     (async () => {
       try {
-        const [, catData] = await Promise.all([
+        const [, catData, me] = await Promise.all([
           loadBudgets(key),
           api<{ rows: Category[] }>("/api/categories?kind=expense"),
+          api<{ currency: string }>("/api/me"),
         ]);
         setCategories(catData.rows);
+        setCurrency(me.currency);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load budgets");
       } finally {
@@ -213,14 +216,14 @@ export default function BudgetsPage() {
                     </span>
                     {b.overspentMinor > 0 ? (
                       <span className="text-sm font-medium text-destructive">
-                        {formatMoney(b.spentMinor)} spent ·{" "}
-                        {formatMoney(b.overspentMinor)} over
+                        {formatMoney(b.spentMinor, currency)} spent ·{" "}
+                        {formatMoney(b.overspentMinor, currency)} over
                       </span>
                     ) : (
                       <span className="text-sm text-muted-foreground">
-                        {formatMoney(b.spentMinor)} of {formatMoney(b.amountMinor)}
+                        {formatMoney(b.spentMinor, currency)} of {formatMoney(b.amountMinor, currency)}
                         <span className="ml-2 font-semibold text-foreground">
-                          {formatMoney(b.remainingMinor)} left
+                          {formatMoney(b.remainingMinor, currency)} left
                         </span>
                       </span>
                     )}
@@ -231,7 +234,7 @@ export default function BudgetsPage() {
                       type="number"
                       min="0.01"
                       step="0.01"
-                      placeholder={`New amount (${formatMoney(b.amountMinor)})`}
+                      placeholder={`New amount (${formatMoney(b.amountMinor, currency)})`}
                       value={editState[b.id] ?? ""}
                       onChange={(e) =>
                         setEditState((s) => ({ ...s, [b.id]: e.target.value }))

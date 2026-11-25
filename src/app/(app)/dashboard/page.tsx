@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { api, formatMoney } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -359,8 +360,8 @@ export default function DashboardPage() {
                         <Badge tone="danger">{t.priority}</Badge>
                       )}
                       {t.dueAt ? (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(t.dueAt).toLocaleDateString()}
+                        <span className="min-w-0 max-w-[10rem] truncate text-[11px] text-muted-foreground sm:text-xs sm:max-w-none">
+                          {formatDateTime(new Date(t.dueAt), me.timezone)}
                         </span>
                       ) : null}
                     </div>

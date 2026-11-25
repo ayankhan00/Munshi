@@ -25,17 +25,18 @@ interface NotificationRow {
 export default function NotificationsPage() {
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const data = await api<{ rows: NotificationRow[]; unread: number }>(
-      "/api/notifications?limit=100",
+      `/api/notifications?limit=100${unreadOnly ? "&unread=1" : ""}`,
     );
     setRows(data.rows);
     setUnread(data.unread);
-  }, []);
+  }, [unreadOnly]);
 
   useEffect(() => {
     (async () => {
@@ -97,10 +98,18 @@ export default function NotificationsPage() {
         title="Notifications"
         description={unread > 0 ? `${unread} unread` : "You're all caught up."}
       >
+        <Button
+          variant={unreadOnly ? "primary" : "outline"}
+          size="sm"
+          aria-pressed={unreadOnly}
+          onClick={() => setUnreadOnly((v) => !v)}
+        >
+          {unreadOnly ? "Show all" : "Unread only"}
+        </Button>
         <Button variant="outline" size="sm" onClick={markAllRead} disabled={busy || unread === 0}>
           Mark all read
         </Button>
-        <Button variant="outline" size="sm" onClick={clearAll} disabled={busy || rows.length === 0}>
+        <Button variant="outline" size="sm" onClick={clearAll} disabled={busy || (unread === 0 && rows.length === 0)}>
           Clear all
         </Button>
       </PageHeader>
@@ -142,25 +151,29 @@ export default function NotificationsPage() {
                         {new Date(n.createdAt).toLocaleString()}
                       </p>
                     </div>
+                  </div>
+                );
+                return (
+                  <li key={n.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      {n.url ? (
+                        <Link href={n.url} className="block">
+                          {content}
+                        </Link>
+                      ) : (
+                        content
+                      )}
+                    </div>
                     {!n.readAt ? (
                       <button
+                        type="button"
                         onClick={() => markRead(n.id)}
-                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                        aria-label={`Mark ${n.title} read`}
+                        className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
                       >
                         Mark read
                       </button>
                     ) : null}
-                  </div>
-                );
-                return (
-                  <li key={n.id} className="px-4 py-3">
-                    {n.url ? (
-                      <Link href={n.url} className="block">
-                        {content}
-                      </Link>
-                    ) : (
-                      content
-                    )}
                   </li>
                 );
               })}

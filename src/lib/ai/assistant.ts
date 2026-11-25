@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
-import { parseIntentWithContext, type ChatHistoryTurn } from "./parser";
+import { parseIntents, type ChatHistoryTurn } from "./parser";
 import { planWithGemini, type GeminiAction, type RecentTransaction } from "./gemini";
-import { executeIntent, type ExecutorContext, type ExecutorResult } from "./executor";
+import {
+  executeIntent,
+  isValidAmount,
+  type ExecutorContext,
+  type ExecutorResult,
+} from "./executor";
 import type { ParsedIntent } from "./types";
 
 export interface AssistantContext extends ExecutorContext {
@@ -102,9 +107,9 @@ function actionToIntent(action: GeminiAction, raw: string): ParsedIntent | null 
     case "query_balance":
       return { kind: "query_balance", raw };
     case "query_spending":
-      return { kind: "query_spending", period: action.period, raw };
+      return { kind: "query_spending", raw };
     case "query_income":
-      return { kind: "query_income", period: action.period, raw };
+      return { kind: "query_income", raw };
     case "create_task":
       return {
         kind: "create_task",
@@ -144,10 +149,15 @@ function intentsFromPlan(
   plan: { actions: GeminiAction[] } | null,
   message: string,
   history: ChatHistoryTurn[] | undefined,
-): { intents: ParsedIntent[]; usedGemini: boolean } {
+): { intents: ParsedIntent[]; usedGemini: boolean; replies: string[] } {
   const intents: ParsedIntent[] = [];
+  const replies: string[] = [];
   const seen = new Set<string>();
   for (const action of plan?.actions ?? []) {
+    if (!isValidAmount(action.changes?.amount ?? action.amount)) {
+      replies.push("That amount isn't valid.");
+      continue;
+    }
     const intent = actionToIntent(action, message);
     if (!intent) continue;
     const key = JSON.stringify(intent);
@@ -169,28 +179,33 @@ function intentsFromPlan(
           ? intents.filter((i) => i.kind === "update_transaction")
           : intents.filter((i) => i.kind !== "update_transaction"),
         usedGemini: true,
+        replies,
       };
     }
-    return { intents, usedGemini: true };
+    return { intents, usedGemini: true, replies };
   }
+  if (replies.length > 0) return { intents, usedGemini: true, replies };
 
   return {
-    intents: [parseIntentWithContext(message, history ?? [])],
+    intents: parseIntents(message, history ?? []),
     usedGemini: false,
+    replies,
   };
 }
 
 async function executeIntents(
   intents: ParsedIntent[],
   ctx: ExecutorContext,
+  replies: string[] = [],
 ): Promise<Omit<AssistantResult, "usedGemini" | "sessionId">> {
-  const results: ExecutorResult[] = [];
+  const results: ExecutorResult[] = replies.map((reply) => ({ reply, intent: "unknown" }));
   for (const intent of intents) {
     try {
       results.push(await executeIntent(intent, ctx));
     } catch (err) {
+      console.error("[assistant] intent failed", err);
       results.push({
-        reply: err instanceof Error ? err.message : "Something went wrong.",
+        reply: "Something went wrong. Please try again.",
         intent: intent.kind,
       });
     }
@@ -215,8 +230,8 @@ export async function runAssistant(
     { text: message },
     { currency: ctx.currency, categories, recentTransactions: recent },
   );
-  const { intents, usedGemini } = intentsFromPlan(plan, message, ctx.history);
-  const result = await executeIntents(intents, ctx);
+  const { intents, usedGemini, replies } = intentsFromPlan(plan, message, ctx.history);
+  const result = await executeIntents(intents, ctx, replies);
   return { ...result, usedGemini, sessionId: ctx.sessionId };
 }
 
@@ -233,8 +248,8 @@ export async function runVoiceAssistant(
   if (!transcript) {
     throw new Error("Could not hear anything. Please try again.");
   }
-  const { intents, usedGemini } = intentsFromPlan(plan, transcript, ctx.history);
-  const result = await executeIntents(intents, ctx);
+  const { intents, usedGemini, replies } = intentsFromPlan(plan, transcript, ctx.history);
+  const result = await executeIntents(intents, ctx, replies);
   return { ...result, usedGemini, sessionId: ctx.sessionId, transcript };
 }
 

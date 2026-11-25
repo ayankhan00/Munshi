@@ -182,6 +182,7 @@ export async function runDueRecurringRules(now = new Date()) {
     const template = safelyParse(rule.template) as unknown as TxTemplate;
     let next = rule.nextRunAt;
     let guard = 0;
+    let failed = false;
     while (next <= now && guard < 60) {
       if (typeof template.amount === "number" && template.amount > 0) {
         try {
@@ -199,11 +200,15 @@ export async function runDueRecurringRules(now = new Date()) {
           created += 1;
         } catch (error) {
           console.error(`Failed recurring rule ${rule.id} occurrence on ${next.toISOString().slice(0, 10)}`, error);
+          failed = true;
+          break;
         }
       }
       next = advance(next, rule.frequency, rule.interval);
       guard += 1;
     }
+    // Keep nextRunAt unchanged so a failed occurrence is retried next run.
+    if (failed) continue;
     await prisma.recurringRule.update({
       where: { id: rule.id },
       data: { nextRunAt: next },

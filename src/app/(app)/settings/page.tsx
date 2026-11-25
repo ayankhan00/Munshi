@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { api, clearCache } from "@/lib/client-api";
+import { removeStoredTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
@@ -47,10 +48,15 @@ const TIMEZONES = [
 export default function SettingsPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [clearStatus, setClearStatus] = useState("");
+  const [clearError, setClearError] = useState("");
   const [form, setForm] = useState({
     name: "",
     currency: "PKR",
@@ -72,6 +78,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
+      setError("");
       try {
         const data = await api<Me>("/api/me");
         setMe(data);
@@ -99,7 +107,7 @@ export default function SettingsPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reloadKey]);
 
   useEffect(() => {
     let active = true;
@@ -119,21 +127,31 @@ export default function SettingsPage() {
     setPushBusy(true);
     setPushMsg("");
     setError("");
-    const result = await enablePush();
-    setPushStatus(result.status);
-    if (!result.ok) setError(result.error ?? "Failed to enable notifications.");
-    else setPushMsg("Push notifications enabled on this device.");
-    setPushBusy(false);
+    try {
+      const result = await enablePush();
+      setPushStatus(result.status);
+      if (!result.ok) throw new Error(result.error ?? "Failed to enable notifications.");
+      setPushMsg("Push notifications enabled on this device.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to enable notifications.");
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   async function handleDisablePush() {
     setPushBusy(true);
     setPushMsg("");
     setError("");
-    await disablePush();
-    setPushStatus(await getPushStatus());
-    setPushMsg("Push notifications disabled on this device.");
-    setPushBusy(false);
+    try {
+      await disablePush();
+      setPushStatus(await getPushStatus());
+      setPushMsg("Push notifications disabled on this device.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to disable notifications.");
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   async function handleProfileSubmit(e: React.FormEvent) {
@@ -175,14 +193,16 @@ export default function SettingsPage() {
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setMessage("");
-    setError("");
+    setPasswordStatus("");
+    setPasswordError("");
     try {
       await api("/api/me/password", { method: "POST", body: JSON.stringify(pw) });
-      setMessage("Password changed.");
       setPw({ currentPassword: "", newPassword: "" });
+      setPasswordStatus("Password changed. You must sign in again with your new password.");
+      clearCache();
+      setTimeout(() => router.push("/login?passwordChanged=1"), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change password");
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setSaving(false);
     }
@@ -192,6 +212,8 @@ export default function SettingsPage() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      removeStoredTheme();
+      clearCache();
       router.push("/login");
     }
   }
@@ -219,28 +241,39 @@ export default function SettingsPage() {
     )
       return;
     setSaving(true);
-    setError("");
-    setMessage("");
+    setClearError("");
+    setClearStatus("");
     try {
       await api("/api/me/clear", { method: "POST" });
       clearCache();
-      setMessage("All financial data cleared. Your profile and settings were kept.");
+      setClearStatus("All financial data cleared. Your profile and settings were kept.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to clear data");
+      setClearError(err instanceof Error ? err.message : "Failed to clear data");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) return <LoadingState label="Loading settings..." />;
-  if (!me) return null;
+  if (!me) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <PageHeader title="Settings" description="Manage your profile and preferences." />
+        <p className="text-sm text-destructive" role="alert">
+          {error || "Failed to load settings."}
+        </p>
+        <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
       <PageHeader title="Settings" description="Manage your profile and preferences." />
 
-      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
 
       <Card>
         <CardHeader>
@@ -412,10 +445,13 @@ export default function SettingsPage() {
                 </FieldGroup>
               </>
             ) : null}
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 space-y-2">
               <Button type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Save profile"}
               </Button>
+              {message ? (
+                <p className="text-sm text-emerald-600" role="status">{message}</p>
+              ) : null}
             </div>
           </form>
         </CardContent>
@@ -460,7 +496,9 @@ export default function SettingsPage() {
               ) : null}
             </div>
           )}
-          {pushMsg ? <p className="text-sm text-emerald-600">{pushMsg}</p> : null}
+          {pushMsg ? (
+            <p className="text-sm text-emerald-600" role="status">{pushMsg}</p>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -491,10 +529,16 @@ export default function SettingsPage() {
                 minLength={8}
               />
             </FieldGroup>
-            <div>
+            <div className="space-y-2">
               <Button type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Change password"}
               </Button>
+              {passwordStatus ? (
+                <p className="text-sm text-emerald-600" role="status">{passwordStatus}</p>
+              ) : null}
+              {passwordError ? (
+                <p className="text-sm text-destructive" role="alert">{passwordError}</p>
+              ) : null}
             </div>
           </form>
         </CardContent>
@@ -513,6 +557,12 @@ export default function SettingsPage() {
             <Button variant="outline" onClick={handleClearData} disabled={saving}>
               Clear all data
             </Button>
+            {clearStatus ? (
+              <p className="text-sm text-emerald-600" role="status">{clearStatus}</p>
+            ) : null}
+            {clearError ? (
+              <p className="text-sm text-destructive" role="alert">{clearError}</p>
+            ) : null}
           </div>
           <div className="space-y-2 border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">

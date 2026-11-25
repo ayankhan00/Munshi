@@ -16,12 +16,17 @@ export async function POST(request: NextRequest) {
   const parsed = resetRequestSchema.safeParse(body);
   if (!parsed.success) return jsonError("Invalid input", 422);
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
-  });
+  const email = parsed.data.email.toLowerCase();
+  if (!(await rateLimit(`auth:reset:email:${email}`, 2, 60_000))) {
+    return jsonError("Too many requests.", 429);
+  }
+
+  const user = await prisma.user.findUnique({ where: { email } });
 
   let devToken: string | undefined;
   if (user) {
+    // Older links must stop working once a new reset is requested.
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
     const raw = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(raw).digest("hex");
     await prisma.passwordResetToken.create({

@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
       where: { id: user.id },
       data: { passwordHash: hashPassword(parsed.newPassword) },
     });
+    // Invalidate existing cookies, including any stolen before the change.
+    await prisma.session.deleteMany({ where: { userId: user.id } });
     return { ok: true };
   });
 }

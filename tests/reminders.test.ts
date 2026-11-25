@@ -8,10 +8,11 @@ import {
   processDueReminders,
   reminderDedupeKey,
 } from "@/lib/services/reminders";
+import { zonedAt } from "@/lib/dates";
 
 const createdUserIds: string[] = [];
-async function user() {
-  const u = await makeUser();
+async function user(overrides: Record<string, unknown> = {}) {
+  const u = await makeUser(overrides);
   createdUserIds.push(u.id);
   return u;
 }
@@ -132,6 +133,41 @@ describe("reminders service", () => {
 
     const second = await processDueReminders();
     expect(second.checked).toBe(0);
+  });
+
+  it("defers a reminder inside quiet hours without notifying", async () => {
+    await wipeReminders();
+    const tz = "America/New_York";
+    const u = await user({ timezone: tz, quietHoursStart: 22, quietHoursEnd: 6 });
+    const now = new Date("2026-06-01T07:00:00.000Z"); // 03:00 in New York
+    await createReminder(u.id, { title: "Night shift", remindAt: now.toISOString() }, tz);
+
+    const result = await processDueReminders(now);
+    expect(result.sent).toBe(0);
+    expect(await prisma.inAppNotification.count({ where: { userId: u.id } })).toBe(0);
+
+    const row = await prisma.reminder.findFirstOrThrow({ where: { userId: u.id } });
+    expect(row.status).toBe("pending");
+    expect(row.remindAt.toISOString()).toBe(
+      zonedAt(tz, 2026, 5, 1, 6, 0).toISOString(),
+    );
+  });
+
+  it("does not send twice when two cron runs overlap", async () => {
+    await wipeReminders();
+    const u = await user();
+    const now = new Date("2026-07-01T10:00:00.000Z");
+    await createReminder(u.id, { title: "A", remindAt: "2026-07-01T09:00:00.000Z" }, TZ);
+    await createReminder(u.id, { title: "B", remindAt: "2026-07-01T09:30:00.000Z" }, TZ);
+
+    const [first, second] = await Promise.all([
+      processDueReminders(now),
+      processDueReminders(now),
+    ]);
+    expect(first.sent + second.sent).toBe(2);
+    expect(await prisma.inAppNotification.count({ where: { userId: u.id } })).toBe(2);
+    const rows = await prisma.reminder.findMany({ where: { userId: u.id } });
+    expect(rows.every((r) => r.status === "sent")).toBe(true);
   });
 
   it("reschedules and deletes reminders (with ownership checks)", async () => {

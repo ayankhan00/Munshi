@@ -22,7 +22,6 @@ export interface CreateExpenseIntent extends BaseIntent {
   categoryName?: string;
   description?: string;
   date?: string;
-  priority?: string;
 }
 
 export interface CreateIncomeIntent extends BaseIntent {
@@ -46,7 +45,6 @@ export interface QueryBalanceIntent extends BaseIntent {
 
 export interface QuerySpendingIntent extends BaseIntent {
   kind: "query_spending" | "query_income";
-  period?: string;
 }
 
 export interface CreateTaskIntent extends BaseIntent {

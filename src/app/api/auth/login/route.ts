@@ -29,8 +29,12 @@ export async function POST(request: NextRequest) {
     return jsonError(first ? first.message : "Invalid input", 422);
   }
   const { email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase();
+  if (!(await rateLimit(`auth:login:email:${normalizedEmail}`, 10, 60_000))) {
+    return jsonError("Too many attempts. Try again later.", 429);
+  }
 
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return jsonError("Invalid email or password.", 401);
   }
