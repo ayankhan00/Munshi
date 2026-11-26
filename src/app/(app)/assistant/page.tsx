@@ -22,12 +22,14 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingState } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import type { ChatTable } from "@/lib/ai/types";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   intent?: string;
   action?: string;
+  table?: ChatTable;
 }
 
 interface ChatSession {
@@ -53,6 +55,8 @@ const SUGGESTIONS = [
   "Salary received 150000",
   "What is my balance?",
   "How much did I spend this month?",
+  "How much did I spend last month?",
+  "Show my last 5 expenses",
   "Add task pay electricity bill by tomorrow",
   "Remind me to call mom at 6pm tomorrow",
 ];
@@ -71,6 +75,16 @@ const MUTATION_LINKS: Record<string, { href: string; label: string }> = {
 
 function mutationLink(intent?: string, action?: string) {
   return (action && MUTATION_LINKS[action]) || (intent && MUTATION_LINKS[intent]) || null;
+}
+
+function tableFromPayload(payload?: string | null): ChatTable | undefined {
+  if (!payload) return undefined;
+  try {
+    const parsed = JSON.parse(payload) as { table?: ChatTable };
+    return Array.isArray(parsed.table?.rows) ? parsed.table : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function timeAgo(iso: string): string {
@@ -218,6 +232,7 @@ export default function AssistantPage() {
             role: m.role as "user" | "assistant",
             content: m.content,
             intent: m.intent ?? undefined,
+            table: tableFromPayload(m.payload),
           })),
       );
       const lastUser = [...res.messages]
@@ -275,6 +290,7 @@ export default function AssistantPage() {
         reply: string;
         intent: string;
         action?: string;
+        table?: ChatTable;
         usedGemini: boolean;
         sessionId: string;
       }>("/api/assistant", {
@@ -286,7 +302,13 @@ export default function AssistantPage() {
       window.localStorage.setItem(SESSION_KEY, res.sessionId);
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: res.reply, intent: res.intent, action: res.action },
+        {
+          role: "assistant",
+          content: res.reply,
+          intent: res.intent,
+          action: res.action,
+          table: res.table,
+        },
       ]);
       void loadSessions();
     } catch (err) {
@@ -357,6 +379,7 @@ export default function AssistantPage() {
         reply: string;
         intent: string;
         action?: string;
+        table?: ChatTable;
         usedGemini: boolean;
         sessionId: string;
       }>("/api/assistant/voice", {
@@ -376,7 +399,13 @@ export default function AssistantPage() {
       window.localStorage.setItem(SESSION_KEY, res.sessionId);
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: res.reply, intent: res.intent, action: res.action },
+        {
+          role: "assistant",
+          content: res.reply,
+          intent: res.intent,
+          action: res.action,
+          table: res.table,
+        },
       ]);
       void loadSessions();
     } catch (err) {
@@ -637,6 +666,37 @@ export default function AssistantPage() {
                     )}
                   >
                     <p className="whitespace-pre-wrap">{m.content}</p>
+                    {m.table ? (
+                      <div className="mt-2 overflow-x-auto">
+                        <table className="w-full border-collapse text-xs">
+                          <caption className="sr-only">Recent transactions</caption>
+                          <thead>
+                            <tr className="border-b border-border/60 text-left opacity-70">
+                              <th scope="col" className="py-1 pr-2 font-medium">Date</th>
+                              <th scope="col" className="py-1 pr-2 font-medium">Category</th>
+                              <th scope="col" className="py-1 pr-2 font-medium">Description</th>
+                              <th scope="col" className="py-1 pl-2 text-right font-medium">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {m.table.rows.map((row, index) => (
+                              <tr
+                                key={`${row.date}-${index}`}
+                                className="border-b border-border/40 last:border-0"
+                              >
+                                <td className="whitespace-nowrap py-1 pr-2">{row.date}</td>
+                                <td className="py-1 pr-2">{row.category}</td>
+                                <td className="py-1 pr-2">{row.description}</td>
+                                <td className="whitespace-nowrap py-1 pl-2 text-right font-medium">
+                                  {row.type === "expense" ? "−" : row.type === "income" ? "+" : ""}
+                                  {row.amount}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
                     {m.intent && m.role === "assistant" ? (
                       <p className="mt-1.5 text-xs opacity-60">
                         intent: {m.intent}

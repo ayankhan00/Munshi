@@ -5,6 +5,7 @@ export type IntentKind =
   | "query_balance"
   | "query_spending"
   | "query_income"
+  | "query_list"
   | "create_task"
   | "create_reminder"
   | "update_transaction"
@@ -43,8 +44,32 @@ export interface QueryBalanceIntent extends BaseIntent {
   kind: "query_balance";
 }
 
+export type QueryPeriod =
+  | "this_month"
+  | "last_month"
+  | "last_week"
+  | "last_3_days"
+  | "last_30_days";
+
 export interface QuerySpendingIntent extends BaseIntent {
   kind: "query_spending" | "query_income";
+  period?: QueryPeriod;
+}
+
+export interface QueryListIntent extends BaseIntent {
+  kind: "query_list";
+  itemType?: "expense" | "income" | "all";
+  limit?: number;
+}
+
+export interface ChatTable {
+  rows: {
+    date: string;
+    category: string;
+    description: string;
+    amount: string;
+    type: "expense" | "income" | "transfer";
+  }[];
 }
 
 export interface CreateTaskIntent extends BaseIntent {
@@ -84,6 +109,7 @@ export type ParsedIntent =
   | CreateTransferIntent
   | QueryBalanceIntent
   | QuerySpendingIntent
+  | QueryListIntent
   | CreateTaskIntent
   | CreateReminderIntent
   | UpdateTransactionIntent

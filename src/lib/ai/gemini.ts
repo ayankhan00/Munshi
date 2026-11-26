@@ -20,6 +20,9 @@ export interface GeminiAction {
   due?: string;
   remind?: string;
   priority?: string;
+  period?: string;
+  limit?: number;
+  itemType?: string;
   targetTransactionId?: string;
   changes?: {
     amount?: number;
@@ -119,8 +122,13 @@ Action shapes:
 - Income: {"type":"create_income","amount":150000,"categoryName":"Salary","description":"salary","date":"today"}
 - Transfer: {"type":"create_transfer","amount":1000,"fromAccount":"Cash","toAccount":"Bank"}
 - Balance: {"type":"query_balance"}
-- Spending: {"type":"query_spending"}
-- Income query: {"type":"query_income"}
+- Spending: {"type":"query_spending","period":"this_month"}
+- Income query: {"type":"query_income","period":"last_month"}
+- Recent list: {"type":"query_list","limit":5,"itemType":"expense"}
+  Use query_list for "show/list me my last N expenses/income/transactions" (never create one).
+  itemType is "expense", "income" or "all" (all non-transfer transactions); limit defaults to 5.
+- period is one of "this_month", "last_month", "last_week", "last_3_days", "last_30_days".
+  "last week" is the previous Monday-Sunday week; "last 3 days" includes today and the two prior days.
 - Task: {"type":"create_task","title":"pay bill","due":"tomorrow","priority":"high"}
 - Reminder: {"type":"create_reminder","title":"call mom","remind":"6pm"}
 - Update: {"type":"update_transaction","targetTransactionId":"...","changes":{"amount":1500,"description":"burgers"}}

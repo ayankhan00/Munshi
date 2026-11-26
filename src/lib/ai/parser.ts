@@ -1,6 +1,6 @@
 import { extractAmount } from "@/lib/money";
 import { resolveCategoryFromText } from "@/lib/categories";
-import type { ParsedIntent } from "./types";
+import type { ParsedIntent, QueryPeriod } from "./types";
 
 const EXPENSE_WORDS = [
   "expense",
@@ -73,6 +73,39 @@ export function hasAnyWord(lower: string, words: string[]): boolean {
   return words.some((w) => matchWord(lower, w));
 }
 
+export function normalizePeriod(value: string | undefined): QueryPeriod | undefined {
+  const text = (value ?? "").toLowerCase().trim();
+  if (
+    ["this_month", "last_month", "last_week", "last_3_days", "last_30_days"].includes(text)
+  ) {
+    return text as QueryPeriod;
+  }
+  if (/\b(?:last|previous|past)\s+month\b/.test(text)) return "last_month";
+  if (/\b(?:last|previous|past)\s+week\b/.test(text)) return "last_week";
+  if (/\b(?:last|past|previous)\s+(?:3|three)\s+days\b/.test(text)) return "last_3_days";
+  if (/\b(?:last|past|previous)\s+(?:30|thirty)\s+days\b/.test(text)) return "last_30_days";
+  return undefined;
+}
+
+const RECENT_ITEMS_RE =
+  /\b(?:last|recent)\s+(?:(?:\d+|a few|few|some)\s+)?(?:transactions?|expenses?|spendings?|income|incomes?|entries)\b/i;
+const SHOW_RECENT_RE = /\b(?:show|list|give me|tell me|what are)\b[^.?!]{0,60}\b(?:last|recent)\b/i;
+
+function parseListQuery(raw: string): ParsedIntent {
+  const lower = raw.toLowerCase();
+  const count = lower.match(/\b(?:last|recent)\s+(\d+)\b/);
+  const hasExpense =
+    hasAnyWord(lower, EXPENSE_WORDS) || /\b(expenses|spendings|payments)\b/.test(lower);
+  const hasIncome =
+    hasAnyWord(lower, INCOME_WORDS) || /\b(incomes|earnings)\b/.test(lower);
+  return {
+    kind: "query_list",
+    itemType: hasExpense && hasIncome ? "all" : hasIncome ? "income" : hasExpense ? "expense" : "all",
+    limit: count ? Number(count[1]) : 5,
+    raw,
+  };
+}
+
 export function findAmount(text: string): number | undefined {
   const n = extractAmount(text);
   return n === null ? undefined : n;
@@ -87,6 +120,28 @@ export function parseIntent(raw: string): ParsedIntent {
 
   if (/\b(help|menu|what can you do|kya kar sakte ho|مدد)\b/.test(lower)) {
     return { kind: "help", raw };
+  }
+
+  const period = normalizePeriod(text);
+  // "last 5 expenses" is a list request; "last month's expenses" is a total.
+  if (RECENT_ITEMS_RE.test(text)) return parseListQuery(text);
+  if (
+    SHOW_RECENT_RE.test(text) &&
+    !/\b(?:last|recent)\s+(?:month|week|(?:3|30)\s+days)\b/i.test(lower)
+  ) {
+    return parseListQuery(text);
+  }
+
+  if (
+    period &&
+    amount === undefined &&
+    !/\b(add|record|log|earned|received|paid|bought|got)\b/.test(lower)
+  ) {
+    return {
+      kind: hasIncomeWord && !hasExpenseWord ? "query_income" : "query_spending",
+      period,
+      raw,
+    };
   }
 
   if (/\b(balance|total money|kitna hai|pesay|پیسے|kitni raqam)\b/.test(lower)) {
@@ -114,11 +169,11 @@ export function parseIntent(raw: string): ParsedIntent {
   }
 
   if (EXPENSE_QUERY_WORDS.test(lower) && /\b(spend|spent|kharcha|خرچ)\b/.test(lower)) {
-    return { kind: "query_spending", raw };
+    return { kind: "query_spending", period, raw };
   }
 
   if (/\b(how much.*(earn|income)|kitni income|آمد)\b/.test(lower)) {
-    return { kind: "query_income", raw };
+    return { kind: "query_income", period, raw };
   }
 
   if (hasIncomeWord && amount !== undefined) {
@@ -130,12 +185,12 @@ export function parseIntent(raw: string): ParsedIntent {
   }
 
   if (/\b(spend|spent|kharcha|خرچ)\b/.test(lower)) {
-    return { kind: "query_spending", raw };
+    return { kind: "query_spending", period, raw };
   }
 
   if (hasIncomeWord) {
     if (amount !== undefined) return parseExpenseLike(text, "income");
-    return { kind: "query_income", raw };
+    return { kind: "query_income", period, raw };
   }
 
   if (hasExpenseWord || amount !== undefined) {

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { parseIntents, type ChatHistoryTurn } from "./parser";
+import { parseIntents, normalizePeriod, type ChatHistoryTurn } from "./parser";
 import { planWithGemini, type GeminiAction, type RecentTransaction } from "./gemini";
 import {
   executeIntent,
@@ -22,6 +22,7 @@ export interface AssistantResult {
   intent: string;
   action?: ExecutorResult["action"];
   data?: unknown;
+  table?: ExecutorResult["table"];
   usedGemini: boolean;
   sessionId?: string;
 }
@@ -107,9 +108,21 @@ function actionToIntent(action: GeminiAction, raw: string): ParsedIntent | null 
     case "query_balance":
       return { kind: "query_balance", raw };
     case "query_spending":
-      return { kind: "query_spending", raw };
+      return { kind: "query_spending", period: normalizePeriod(action.period), raw };
     case "query_income":
-      return { kind: "query_income", raw };
+      return { kind: "query_income", period: normalizePeriod(action.period), raw };
+    case "query_list":
+      return {
+        kind: "query_list",
+        itemType:
+          action.itemType === "expense" ||
+          action.itemType === "income" ||
+          action.itemType === "all"
+            ? action.itemType
+            : "all",
+        limit: action.limit,
+        raw,
+      };
     case "create_task":
       return {
         kind: "create_task",
@@ -218,6 +231,7 @@ async function executeIntents(
     intent: single ? results[0]?.intent ?? "unknown" : "multi",
     action: single ? results[0]?.action : undefined,
     data: single ? results[0]?.data : results.map((r) => r.data),
+    table: single ? results[0]?.table : undefined,
   };
 }
 
@@ -279,6 +293,7 @@ export async function persistTurn(
         role: "assistant",
         content: result.reply,
         intent: result.intent,
+        payload: result.table ? JSON.stringify({ table: result.table }) : null,
       },
     })
     .catch(() => null);

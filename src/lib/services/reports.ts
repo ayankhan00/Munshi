@@ -107,6 +107,16 @@ function aggregateCategories(
   return { totalIncomeMinor: totalIncome, totalExpenseMinor: totalExpense, categories };
 }
 
+export async function categoryBreakdownForRange(
+  userId: string,
+  tz: string,
+  from: Date,
+  toExclusive: Date,
+) {
+  const txns = await rangeSummulative(userId, { from, toExclusive });
+  return aggregateCategories(txns);
+}
+
 export async function categoryBreakdown(
   userId: string,
   tz: string,
@@ -115,8 +125,7 @@ export async function categoryBreakdown(
 ) {
   const start = monthRange(monthKeys[0], tz, startDay).start;
   const end = monthRange(monthKeys[monthKeys.length - 1], tz, startDay).endExclusive;
-  const txns = await rangeSummulative(userId, { from: start, toExclusive: end });
-  return aggregateCategories(txns);
+  return categoryBreakdownForRange(userId, tz, start, end);
 }
 
 export async function categoryBreakdownForDays(
@@ -126,10 +135,12 @@ export async function categoryBreakdownForDays(
 ) {
   const span = Math.min(Math.max(Math.round(days) || 7, 1), 366);
   const todayStart = startOfDayZoned(new Date(), tz);
-  const start = fnAddDays(todayStart, -(span - 1));
-  const endExclusive = fnAddDays(todayStart, 1);
-  const txns = await rangeSummulative(userId, { from: start, toExclusive: endExclusive });
-  return aggregateCategories(txns);
+  return categoryBreakdownForRange(
+    userId,
+    tz,
+    fnAddDays(todayStart, -(span - 1)),
+    fnAddDays(todayStart, 1),
+  );
 }
 
 export async function monthlySeries(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIntent, parseIntents } from "@/lib/ai/parser";
+import { parseIntent, parseIntents, normalizePeriod } from "@/lib/ai/parser";
 import { extractAmount, toMinor } from "@/lib/money";
 import { parseNaturalDateTime } from "@/lib/dates";
 import { toZonedTime } from "date-fns-tz";
@@ -131,6 +131,57 @@ describe("ai parser", () => {
 
   it("returns unknown for gibberish", () => {
     expect(parseIntent("zxcvbn asdf qwerty").kind).toBe("unknown");
+  });
+});
+
+describe("period and list queries", () => {
+  it("normalizes period phrases", () => {
+    expect(normalizePeriod("last month")).toBe("last_month");
+    expect(normalizePeriod("last week")).toBe("last_week");
+    expect(normalizePeriod("last 3 days")).toBe("last_3_days");
+    expect(normalizePeriod("last 30 days")).toBe("last_30_days");
+    expect(normalizePeriod("yesterday")).toBeUndefined();
+  });
+
+  it.each([
+    ["How much did I spend last month?", "last_month"],
+    ["How much did I spend last week?", "last_week"],
+    ["How much did I spend in the last 3 days?", "last_3_days"],
+    ["How much did I spend in the past 30 days?", "last_30_days"],
+    ["Show me last month's expenses", "last_month"],
+  ])("attaches a period to '%s'", (message, period) => {
+    expect(parseIntent(message)).toMatchObject({ kind: "query_spending", period });
+  });
+
+  it("treats a count in a period phrase as part of the period, not an amount", () => {
+    expect(parseIntent("How much did I spend last 3 days?")).toMatchObject({
+      kind: "query_spending",
+      period: "last_3_days",
+    });
+  });
+
+  it("parses a recent expense list without creating a transaction", () => {
+    expect(parseIntent("Show me my last 5 expenses")).toMatchObject({
+      kind: "query_list",
+      itemType: "expense",
+      limit: 5,
+    });
+  });
+
+  it("parses a recent income list with a custom count", () => {
+    expect(parseIntent("show my last 10 income")).toMatchObject({
+      kind: "query_list",
+      itemType: "income",
+      limit: 10,
+    });
+  });
+
+  it("defaults to five mixed transactions", () => {
+    expect(parseIntent("list my recent transactions")).toMatchObject({
+      kind: "query_list",
+      itemType: "all",
+      limit: 5,
+    });
   });
 });
 
