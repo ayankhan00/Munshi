@@ -132,6 +132,7 @@ export function parseNaturalDateTime(
   raw: string,
   tz: string,
   now = new Date(),
+  preferPast = false,
 ): NaturalDateTime | null {
   const text = raw.toLowerCase();
   const time = clockFromTimeWord(text) ?? parseClockTime(text);
@@ -225,11 +226,19 @@ export function parseNaturalDateTime(
   const datePhrase = text.match(/on?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+([a-z]+)/);
   if (datePhrase) {
     const day = parseInt(datePhrase[1], 10);
-    const monthIdx = MONTH_NAMES.indexOf(datePhrase[2].slice(0, 3));
+    const monthIdx = MONTH_NAMES.findIndex((name) =>
+      name.startsWith(datePhrase[2].slice(0, 3).toLowerCase()),
+    );
     if (monthIdx >= 0) {
       let y = zonedNow.getFullYear();
       const candidate = zonedAt(tz, y, monthIdx, day);
-      if (candidate.getTime() < now.getTime() - 86_400_000) y += 1;
+      if (
+        preferPast
+          ? candidate.getTime() > now.getTime()
+          : candidate.getTime() < now.getTime() - 86_400_000
+      ) {
+        y += preferPast ? -1 : 1;
+      }
       return {
         date: time ? zonedAt(tz, y, monthIdx, day, time.hour, time.minute) : zonedAt(tz, y, monthIdx, day),
         hadDate: true,
@@ -250,5 +259,55 @@ export function parseNaturalDateTime(
   return null;
 }
 
+
+const DATE_TOKEN_RE = String.raw`(?:\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|today|yesterday)`;
+const DATE_RANGE_RE = new RegExp(
+  `\\b(?:from|between)\\s+(${DATE_TOKEN_RE})\\s+(?:to|and|till|until)\\s+(${DATE_TOKEN_RE})\\b`,
+  "i",
+);
+
+export function matchDateRange(text: string): { from: string; to: string } | null {
+  const match = text.match(DATE_RANGE_RE);
+  return match ? { from: match[1], to: match[2] } : null;
+}
+
+export function dateRange(
+  raw: string,
+  tz: string,
+  now = new Date(),
+): { from: Date; toExclusive: Date; label: string } | null {
+  const parts = matchDateRange(raw);
+  if (!parts) return null;
+  const resolve = (value: string, preferPast: boolean) => {
+    const direct = parseNaturalDateTime(value, tz, now, preferPast);
+    const parsed = direct?.hadDate
+      ? direct
+      : parseNaturalDateTime(`on ${value}`, tz, now, preferPast);
+    return parsed?.hadDate ? parsed.date : null;
+  };
+  const candidates: { start: Date; endExclusive: Date; to: Date }[] = [];
+  for (const fromPast of [true, false]) {
+    for (const toPast of [true, false]) {
+      const from = resolve(parts.from, fromPast);
+      const to = resolve(parts.to, toPast);
+      if (!from || !to) continue;
+      const start = startOfDayZoned(from, tz);
+      const endExclusive = fnAddDays(startOfDayZoned(to, tz), 1);
+      if (endExclusive > start) candidates.push({ start, endExclusive, to });
+    }
+  }
+  if (candidates.length === 0) return null;
+  const midpoint = (c: (typeof candidates)[number]) =>
+    (c.start.getTime() + c.endExclusive.getTime()) / 2;
+  candidates.sort(
+    (a, b) => Math.abs(midpoint(a) - now.getTime()) - Math.abs(midpoint(b) - now.getTime()),
+  );
+  const best = candidates[0];
+  return {
+    from: best.start,
+    toExclusive: best.endExclusive,
+    label: `${dateKey(best.start, tz)} to ${dateKey(best.to, tz)}`,
+  };
+}
 
 export { fnAddDays, fnAddMonths, fnAddWeeks, toZonedTime };

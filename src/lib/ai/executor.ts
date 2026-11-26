@@ -1,13 +1,22 @@
 import { prisma } from "@/lib/db";
 import { createTransaction, getCurrentBalance, updateTransaction, type TxInput } from "@/lib/services/transactions";
-import { categoryBreakdown } from "@/lib/services/reports";
+import { categoryBreakdownForRange, topExpenses } from "@/lib/services/reports";
 import { createTask } from "@/lib/services/tasks";
 import { createReminder } from "@/lib/services/reminders";
-import { currentMonthKey, formatDateTime, dateKey } from "@/lib/dates";
+import {
+  currentMonthKey,
+  formatDateTime,
+  dateKey,
+  monthRange,
+  startOfDayZoned,
+  fnAddDays,
+  dateRange,
+} from "@/lib/dates";
+import { formatInTimeZone } from "date-fns-tz";
 import { formatMoney } from "@/lib/money";
 import { parseNaturalDateTime } from "@/lib/dates";
 import { moneyAmountSchema } from "@/lib/validation";
-import type { ParsedIntent } from "./types";
+import type { ChatTable, ParsedIntent, QueryPeriod } from "./types";
 
 export interface ExecutorContext {
   userId: string;
@@ -20,6 +29,7 @@ export interface ExecutorResult {
   intent: string;
   action?: "transaction" | "task" | "reminder";
   data?: unknown;
+  table?: ChatTable;
 }
 
 // moneyAmountSchema permits sub-paisa values, which would round to zero on write.
@@ -38,9 +48,15 @@ export async function executeIntent(intent: ParsedIntent, ctx: ExecutorContext):
     case "query_balance":
       return executeBalance(ctx);
     case "query_spending":
-      return executeSpending(ctx);
+      return executeSpending(intent, ctx);
     case "query_income":
-      return executeIncome(ctx);
+      return executeIncome(intent, ctx);
+    case "query_list":
+      return executeList(intent, ctx);
+    case "query_breakdown":
+      return executeBreakdown(intent, ctx);
+    case "query_top":
+      return executeTop(intent, ctx);
     case "create_task":
       return executeTask(intent, ctx);
     case "create_reminder":
@@ -53,6 +69,8 @@ export async function executeIntent(intent: ParsedIntent, ctx: ExecutorContext):
           "• Add expense/income: \"Add expense 500 for lunch\" or \"Salary received 150000\"\n" +
           "• Check balance: \"What is my balance?\"\n" +
           "• Spending: \"How much did I spend this month?\"\n" +
+          "• Breakdown: \"Where did my money go last month?\"\n" +
+          "• Top expenses: \"My 3 biggest expenses this month\"\n" +
           "• Tasks: \"Add task pay electricity bill by tomorrow\"\n" +
           "• Reminders: \"Remind me to call mom at 6pm\"",
         intent: intent.kind,
@@ -122,32 +140,173 @@ async function executeBalance(ctx: ExecutorContext): Promise<ExecutorResult> {
   };
 }
 
-async function executeSpending(ctx: ExecutorContext): Promise<ExecutorResult> {
-  const monthKey = currentMonthKey(ctx.timezone);
-  const breakdown = await categoryBreakdown(ctx.userId, ctx.timezone, 1, [monthKey]);
-  const formatted = formatMoney(breakdown.totalExpenseMinor, ctx.currency);
+function periodRange(
+  period: QueryPeriod | undefined,
+  tz: string,
+  raw?: string,
+  now = new Date(),
+): { from: Date; toExclusive: Date; label: string } {
+  const explicit = raw ? dateRange(raw, tz, now) : null;
+  if (explicit) return explicit;
+  switch (period ?? "this_month") {
+    case "last_month": {
+      const [year, month] = currentMonthKey(tz).split("-").map(Number);
+      const key = `${month === 1 ? year - 1 : year}-${String(month === 1 ? 12 : month - 1).padStart(2, "0")}`;
+      const range = monthRange(key, tz);
+      return { from: range.start, toExclusive: range.endExclusive, label: "last month" };
+    }
+    case "last_week": {
+      const today = startOfDayZoned(now, tz);
+      const thisMonday = fnAddDays(today, -(Number(formatInTimeZone(now, tz, "i")) - 1));
+      return { from: fnAddDays(thisMonday, -7), toExclusive: thisMonday, label: "last week" };
+    }
+    case "last_3_days": {
+      const today = startOfDayZoned(now, tz);
+      return {
+        from: fnAddDays(today, -2),
+        toExclusive: fnAddDays(today, 1),
+        label: "the last 3 days",
+      };
+    }
+    case "last_30_days": {
+      const today = startOfDayZoned(now, tz);
+      return {
+        from: fnAddDays(today, -29),
+        toExclusive: fnAddDays(today, 1),
+        label: "the last 30 days",
+      };
+    }
+    default: {
+      const range = monthRange(currentMonthKey(tz), tz);
+      return { from: range.start, toExclusive: range.endExclusive, label: "this month" };
+    }
+  }
+}
+
+type SpendingIntent = Extract<ParsedIntent, { kind: "query_spending" | "query_income" }>;
+
+async function executeSpending(intent: SpendingIntent, ctx: ExecutorContext): Promise<ExecutorResult> {
+  const { from, toExclusive, label } = periodRange(intent.period, ctx.timezone, intent.raw);
+  const breakdown = await categoryBreakdownForRange(ctx.userId, ctx.timezone, from, toExclusive);
   if (breakdown.categories.length === 0) {
     return {
-      reply: `You haven't spent anything this month (${monthKey}).`,
+      reply: `You haven't spent anything ${label}.`,
       intent: "query_spending",
       data: breakdown,
     };
   }
   const top = breakdown.categories[0];
   return {
-    reply: `You spent ${formatted} this month. Top category: ${top.name} (${formatMoney(top.minor, ctx.currency)}).`,
+    reply: `You spent ${formatMoney(breakdown.totalExpenseMinor, ctx.currency)} ${label}. Top category: ${top.name} (${formatMoney(top.minor, ctx.currency)}).`,
     intent: "query_spending",
     data: breakdown,
   };
 }
 
-async function executeIncome(ctx: ExecutorContext): Promise<ExecutorResult> {
-  const monthKey = currentMonthKey(ctx.timezone);
-  const breakdown = await categoryBreakdown(ctx.userId, ctx.timezone, 1, [monthKey]);
+async function executeIncome(intent: SpendingIntent, ctx: ExecutorContext): Promise<ExecutorResult> {
+  const { from, toExclusive, label } = periodRange(intent.period, ctx.timezone, intent.raw);
+  const breakdown = await categoryBreakdownForRange(ctx.userId, ctx.timezone, from, toExclusive);
   return {
-    reply: `You earned ${formatMoney(breakdown.totalIncomeMinor, ctx.currency)} this month.`,
+    reply: `You earned ${formatMoney(breakdown.totalIncomeMinor, ctx.currency)} ${label}.`,
     intent: "query_income",
     data: breakdown,
+  };
+}
+
+async function executeList(
+  intent: Extract<ParsedIntent, { kind: "query_list" }>,
+  ctx: ExecutorContext,
+): Promise<ExecutorResult> {
+  const itemType = intent.itemType ?? "all";
+  const limit = Math.min(Math.max(Math.round(Number(intent.limit) || 5), 1), 20);
+  const txns = await prisma.transaction.findMany({
+    where: {
+      userId: ctx.userId,
+      deletedAt: null,
+      ...(itemType === "all" ? { type: { not: "transfer" } } : { type: itemType }),
+    },
+    orderBy: { occurredAt: "desc" },
+    take: limit,
+    select: {
+      amountMinor: true,
+      type: true,
+      description: true,
+      occurredAt: true,
+      category: { select: { name: true } },
+    },
+  });
+
+  if (txns.length === 0) {
+    return { reply: `No ${itemType === "all" ? "" : `${itemType} `}transactions found.`, intent: "query_list" };
+  }
+
+  const rows: ChatTable["rows"] = txns.map((t) => ({
+    date: dateKey(t.occurredAt, ctx.timezone),
+    category: t.category?.name || "Uncategorized",
+    description:
+      t.description?.trim() ||
+      t.category?.name ||
+      (t.type === "income" ? "Income" : t.type === "transfer" ? "Transfer" : "Expense"),
+    amount: formatMoney(t.amountMinor, ctx.currency),
+    type: t.type === "income" || t.type === "transfer" ? t.type : "expense",
+  }));
+  return {
+    reply: `Here are your last ${rows.length} ${itemType === "all" ? "" : `${itemType} `}transactions:`,
+    intent: "query_list",
+    table: { rows },
+    data: txns,
+  };
+}
+
+async function executeBreakdown(
+  intent: Extract<ParsedIntent, { kind: "query_breakdown" }>,
+  ctx: ExecutorContext,
+): Promise<ExecutorResult> {
+  const { from, toExclusive, label } = periodRange(intent.period, ctx.timezone, intent.raw);
+  const breakdown = await categoryBreakdownForRange(ctx.userId, ctx.timezone, from, toExclusive);
+  if (breakdown.categories.length === 0) {
+    return { reply: `No spending found for ${label}.`, intent: "query_breakdown" };
+  }
+  const rows: ChatTable["rows"] = breakdown.categories.map((c) => ({
+    date: "",
+    category: c.name,
+    description: `${c.percent}% of spend`,
+    amount: formatMoney(c.minor, ctx.currency),
+    type: "expense",
+    share: c.percent,
+  }));
+  return {
+    reply: `Spending breakdown ${label} — total ${formatMoney(breakdown.totalExpenseMinor, ctx.currency)}:`,
+    intent: "query_breakdown",
+    table: { columns: ["Category", "Share", "Amount"], rows },
+    data: breakdown,
+  };
+}
+
+async function executeTop(
+  intent: Extract<ParsedIntent, { kind: "query_top" }>,
+  ctx: ExecutorContext,
+): Promise<ExecutorResult> {
+  const limit = Math.min(Math.max(Math.round(Number(intent.limit) || 5), 1), 20);
+  const { from, toExclusive, label } = periodRange(intent.period, ctx.timezone, intent.raw);
+  const txns = await topExpenses(ctx.userId, from, toExclusive, limit);
+  if (txns.length === 0) {
+    return { reply: `No expenses found for ${label}.`, intent: "query_top" };
+  }
+  const max = txns[0].amountMinor || 1;
+  const rows: ChatTable["rows"] = txns.map((t) => ({
+    date: dateKey(t.occurredAt, ctx.timezone),
+    category: t.category?.name || "Uncategorized",
+    description: t.description?.trim() || "Expense",
+    amount: formatMoney(t.amountMinor, ctx.currency),
+    type: "expense",
+    share: Math.round((t.amountMinor / max) * 100),
+  }));
+  return {
+    reply: `Your ${rows.length} biggest expenses ${label}:`,
+    intent: "query_top",
+    table: { rows },
+    data: txns,
   };
 }
 

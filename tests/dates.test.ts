@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { formatInTimeZone } from "date-fns-tz";
 import { intentMappedDate } from "@/lib/ai/executor";
-import { dateKey, parseNaturalDateTime } from "@/lib/dates";
+import { dateKey, parseNaturalDateTime, dateRange } from "@/lib/dates";
 
 describe("assistant relative dates use the user's timezone", () => {
   const tz = "Asia/Karachi";
@@ -38,5 +38,35 @@ describe("today with a time across a DST change", () => {
     const parsed = parseNaturalDateTime("today 9am", tz, now);
     expect(parsed).not.toBeNull();
     expect(formatInTimeZone(parsed!.date, tz, "yyyy-MM-dd HH:mm")).toBe("2026-03-08 09:00");
+  });
+});
+
+describe("named dates and explicit ranges", () => {
+  const tz = "Asia/Karachi";
+  const now = new Date("2026-11-27T10:00:00.000Z");
+
+  it("parses abbreviated month names, defaulting to the next occurrence", () => {
+    const future = parseNaturalDateTime("on 1 nov", tz, now);
+    expect(future && dateKey(future.date, tz)).toBe("2027-11-01");
+    const past = parseNaturalDateTime("on 1 nov", tz, now, true);
+    expect(past && dateKey(past.date, tz)).toBe("2026-11-01");
+  });
+
+  it("resolves a past range to inclusive start and exclusive end", () => {
+    const range = dateRange("from 1 nov to 15 nov", tz, now);
+    expect(range && dateKey(range.from, tz)).toBe("2026-11-01");
+    expect(range && dateKey(range.toExclusive, tz)).toBe("2026-11-16");
+  });
+
+  it("keeps an end date later this month in the current year", () => {
+    const range = dateRange("from 1 nov to 30 nov", tz, now);
+    expect(range && dateKey(range.from, tz)).toBe("2026-11-01");
+    expect(range && dateKey(range.toExclusive, tz)).toBe("2026-12-01");
+  });
+
+  it("prefers an upcoming range when both dates are still ahead", () => {
+    const range = dateRange("from 1 dec to 15 dec", tz, now);
+    expect(range && dateKey(range.from, tz)).toBe("2026-12-01");
+    expect(range && dateKey(range.toExclusive, tz)).toBe("2026-12-16");
   });
 });
