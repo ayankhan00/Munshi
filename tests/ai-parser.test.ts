@@ -183,6 +183,31 @@ describe("period and list queries", () => {
       limit: 5,
     });
   });
+
+  it("detects breakdown and top-expense queries", () => {
+    expect(parseIntent("Where did my money go last month?")).toMatchObject({
+      kind: "query_breakdown",
+      period: "last_month",
+    });
+    expect(parseIntent("show spending by category last week")).toMatchObject({
+      kind: "query_breakdown",
+      period: "last_week",
+    });
+    expect(parseIntent("My 3 biggest expenses this month")).toMatchObject({
+      kind: "query_top",
+      limit: 3,
+    });
+    expect(parseIntent("top expenses")).toMatchObject({ kind: "query_top", limit: 5 });
+  });
+
+  it("treats explicit ranges as queries, not transactions", () => {
+    expect(parseIntent("How much did I spend from 1 nov to 15 nov?")).toMatchObject({
+      kind: "query_spending",
+    });
+    expect(parseIntent("show my expenses between 1 nov and 15 nov")).toMatchObject({
+      kind: "query_spending",
+    });
+  });
 });
 
 describe("extractAmount", () => {

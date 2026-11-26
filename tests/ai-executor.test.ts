@@ -6,12 +6,14 @@ const {
   createTransaction,
   updateTransaction,
   categoryBreakdownForRange,
+  topExpenses,
 } = vi.hoisted(() => ({
   accountFindMany: vi.fn(),
   transactionFindMany: vi.fn(),
   createTransaction: vi.fn(),
   updateTransaction: vi.fn(),
   categoryBreakdownForRange: vi.fn(),
+  topExpenses: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -27,10 +29,10 @@ vi.mock("@/lib/services/transactions", () => ({
   getCurrentBalance: vi.fn(),
 }));
 
-vi.mock("@/lib/services/reports", () => ({ categoryBreakdownForRange }));
+vi.mock("@/lib/services/reports", () => ({ categoryBreakdownForRange, topExpenses }));
 
 import { executeIntent } from "@/lib/ai/executor";
-import { currentMonthKey, monthRange, startOfDayZoned, fnAddDays } from "@/lib/dates";
+import { currentMonthKey, monthRange, startOfDayZoned, fnAddDays, dateRange } from "@/lib/dates";
 
 const ctx = { userId: "user-1", timezone: "Asia/Karachi", currency: "PKR" };
 
@@ -171,5 +173,74 @@ describe("recent transaction lists", () => {
     expect(transactionFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ take: 20, where: expect.objectContaining({ type: { not: "transfer" } }) }),
     );
+  });
+});
+
+describe("breakdown and top expenses", () => {
+  beforeEach(() => {
+    categoryBreakdownForRange.mockResolvedValue({
+      totalExpenseMinor: 100000,
+      totalIncomeMinor: 0,
+      categories: [
+        { id: null, name: "Food/Drink", color: "#fff", minor: 60000, percent: 60 },
+        { id: null, name: "Rent", color: "#000", minor: 40000, percent: 40 },
+      ],
+    });
+    topExpenses.mockResolvedValue([
+      {
+        amountMinor: 100000,
+        occurredAt: new Date("2026-11-27T10:00:00Z"),
+        description: "rent",
+        category: { name: "Rent" },
+      },
+      {
+        amountMinor: 50000,
+        occurredAt: new Date("2026-11-26T10:00:00Z"),
+        description: "groceries",
+        category: { name: "Groceries" },
+      },
+    ]);
+  });
+
+  it("renders a category breakdown with bars", async () => {
+    const result = await executeIntent(
+      { kind: "query_breakdown", period: "last_month", raw: "where did my money go last month" },
+      ctx,
+    );
+    expect(result.table?.columns).toEqual(["Category", "Share", "Amount"]);
+    expect(result.table?.rows[0]).toMatchObject({
+      category: "Food/Drink",
+      share: 60,
+      amount: "Rs 600",
+    });
+  });
+
+  it("renders the biggest expenses with relative bars", async () => {
+    const result = await executeIntent(
+      { kind: "query_top", period: "this_month", limit: 2, raw: "my 2 biggest expenses" },
+      ctx,
+    );
+    expect(topExpenses).toHaveBeenCalledWith(
+      ctx.userId,
+      expect.any(Date),
+      expect.any(Date),
+      2,
+    );
+    expect(result.table?.rows.map((row) => row.share)).toEqual([100, 50]);
+  });
+
+  it("uses an explicit range from the message", async () => {
+    const expected = dateRange("from 1 nov to 15 nov", ctx.timezone);
+    expect(expected).not.toBeNull();
+    await executeIntent(
+      {
+        kind: "query_spending",
+        raw: "How much did I spend from 1 nov to 15 nov?",
+      },
+      ctx,
+    );
+    const call = categoryBreakdownForRange.mock.calls[0];
+    expect(call[2]).toEqual(expected?.from);
+    expect(call[3]).toEqual(expected?.toExclusive);
   });
 });

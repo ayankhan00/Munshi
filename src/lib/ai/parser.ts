@@ -1,5 +1,6 @@
 import { extractAmount } from "@/lib/money";
 import { resolveCategoryFromText } from "@/lib/categories";
+import { matchDateRange } from "@/lib/dates";
 import type { ParsedIntent, QueryPeriod } from "./types";
 
 const EXPENSE_WORDS = [
@@ -130,6 +131,26 @@ export function parseIntent(raw: string): ParsedIntent {
     !/\b(?:last|recent)\s+(?:month|week|(?:3|30)\s+days)\b/i.test(lower)
   ) {
     return parseListQuery(text);
+  }
+
+  if (/\b(?:breakdown|by category|category wise)\b|\bwhere (?:did|does|do|has)\b[^.?!]*\b(?:money|spend|spent|go|gone)\b/i.test(text)) {
+    return { kind: "query_breakdown", period, raw };
+  }
+
+  const TOP_ITEMS_RE =
+    /\b(?:top|biggest|largest|highest)\s+(?:\d+\s+)?(?:expenses?|spendings?|purchases?)\b|\b\d+\s+(?:biggest|largest|top|highest)\s+(?:expenses?|spendings?)\b/i;
+  if (TOP_ITEMS_RE.test(text)) {
+    const count =
+      lower.match(/\b(?:top|biggest|largest|highest)\s+(\d+)\b/)?.[1] ??
+      lower.match(/\b(\d+)\s+(?:biggest|largest|top|highest)\b/)?.[1];
+    return { kind: "query_top", period, limit: count ? Number(count) : 5, raw };
+  }
+
+  if (matchDateRange(text) && !/\b(add|record|log)\b/.test(lower)) {
+    return {
+      kind: hasIncomeWord && !hasExpenseWord ? "query_income" : "query_spending",
+      raw,
+    };
   }
 
   if (

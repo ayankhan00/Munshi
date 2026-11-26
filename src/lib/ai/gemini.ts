@@ -127,8 +127,13 @@ Action shapes:
 - Recent list: {"type":"query_list","limit":5,"itemType":"expense"}
   Use query_list for "show/list me my last N expenses/income/transactions" (never create one).
   itemType is "expense", "income" or "all" (all non-transfer transactions); limit defaults to 5.
+- Spending breakdown: {"type":"query_breakdown","period":"last_month"}
+  Use for "where did my money go", "breakdown by category".
+- Top expenses: {"type":"query_top","limit":3,"period":"last_month"}
+  Use for "top/biggest/largest N expenses"; limit defaults to 5, max 20.
 - period is one of "this_month", "last_month", "last_week", "last_3_days", "last_30_days".
   "last week" is the previous Monday-Sunday week; "last 3 days" includes today and the two prior days.
+  For explicit ranges ("from 1 Nov to 15 Nov"), keep the words in transcript/message; the range is read from them.
 - Task: {"type":"create_task","title":"pay bill","due":"tomorrow","priority":"high"}
 - Reminder: {"type":"create_reminder","title":"call mom","remind":"6pm"}
 - Update: {"type":"update_transaction","targetTransactionId":"...","changes":{"amount":1500,"description":"burgers"}}

@@ -57,6 +57,8 @@ const SUGGESTIONS = [
   "How much did I spend this month?",
   "How much did I spend last month?",
   "Show my last 5 expenses",
+  "Where did my money go last month?",
+  "My 3 biggest expenses this month",
   "Add task pay electricity bill by tomorrow",
   "Remind me to call mom at 6pm tomorrow",
 ];
@@ -75,6 +77,80 @@ const MUTATION_LINKS: Record<string, { href: string; label: string }> = {
 
 function mutationLink(intent?: string, action?: string) {
   return (action && MUTATION_LINKS[action]) || (intent && MUTATION_LINKS[intent]) || null;
+}
+
+function ChatTableBlock({ table }: { table: ChatTable }) {
+  const columns = table.columns ?? ["Date", "Category", "Description", "Amount"];
+  const value = (row: ChatTable["rows"][number], column: string) =>
+    column === "Date"
+      ? row.date
+      : column === "Category"
+        ? row.category
+        : column === "Amount"
+          ? row.amount
+          : row.description;
+
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        <caption className="sr-only">Assistant query results</caption>
+        <thead>
+          <tr className="border-b border-border/60 text-left opacity-70">
+            {columns.map((column) => (
+              <th
+                key={column}
+                scope="col"
+                className={cn("py-1 pr-2 font-medium", column === "Amount" && "pl-2 text-right")}
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, index) => (
+            <tr
+              key={`${row.date}-${row.category}-${index}`}
+              className="border-b border-border/40 last:border-0"
+            >
+              {columns.map((column) => (
+                <td
+                  key={column}
+                  className={cn(
+                    "py-1 pr-2",
+                    column === "Date" && "whitespace-nowrap",
+                    column === "Amount" && "whitespace-nowrap pl-2 text-right font-medium",
+                  )}
+                >
+                  {column === "Amount" ? (
+                    <>
+                      <div>
+                        {row.type === "expense" ? "−" : row.type === "income" ? "+" : ""}
+                        {value(row, column)}
+                      </div>
+                      {typeof row.share === "number" ? (
+                        <div
+                          className="mt-1 h-1 w-full overflow-hidden rounded-full bg-background/60"
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="h-full rounded-full bg-primary/70"
+                            style={{ width: `${Math.min(100, Math.max(0, row.share))}%` }}
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    value(row, column)
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function tableFromPayload(payload?: string | null): ChatTable | undefined {
@@ -666,37 +742,7 @@ export default function AssistantPage() {
                     )}
                   >
                     <p className="whitespace-pre-wrap">{m.content}</p>
-                    {m.table ? (
-                      <div className="mt-2 overflow-x-auto">
-                        <table className="w-full border-collapse text-xs">
-                          <caption className="sr-only">Recent transactions</caption>
-                          <thead>
-                            <tr className="border-b border-border/60 text-left opacity-70">
-                              <th scope="col" className="py-1 pr-2 font-medium">Date</th>
-                              <th scope="col" className="py-1 pr-2 font-medium">Category</th>
-                              <th scope="col" className="py-1 pr-2 font-medium">Description</th>
-                              <th scope="col" className="py-1 pl-2 text-right font-medium">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {m.table.rows.map((row, index) => (
-                              <tr
-                                key={`${row.date}-${index}`}
-                                className="border-b border-border/40 last:border-0"
-                              >
-                                <td className="whitespace-nowrap py-1 pr-2">{row.date}</td>
-                                <td className="py-1 pr-2">{row.category}</td>
-                                <td className="py-1 pr-2">{row.description}</td>
-                                <td className="whitespace-nowrap py-1 pl-2 text-right font-medium">
-                                  {row.type === "expense" ? "−" : row.type === "income" ? "+" : ""}
-                                  {row.amount}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
+                    {m.table ? <ChatTableBlock table={m.table} /> : null}
                     {m.intent && m.role === "assistant" ? (
                       <p className="mt-1.5 text-xs opacity-60">
                         intent: {m.intent}

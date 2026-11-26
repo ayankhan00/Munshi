@@ -123,6 +123,15 @@ function actionToIntent(action: GeminiAction, raw: string): ParsedIntent | null 
         limit: action.limit,
         raw,
       };
+    case "query_breakdown":
+      return { kind: "query_breakdown", period: normalizePeriod(action.period), raw };
+    case "query_top":
+      return {
+        kind: "query_top",
+        period: normalizePeriod(action.period),
+        limit: action.limit,
+        raw,
+      };
     case "create_task":
       return {
         kind: "create_task",

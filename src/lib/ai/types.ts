@@ -6,6 +6,8 @@ export type IntentKind =
   | "query_spending"
   | "query_income"
   | "query_list"
+  | "query_breakdown"
+  | "query_top"
   | "create_task"
   | "create_reminder"
   | "update_transaction"
@@ -62,13 +64,26 @@ export interface QueryListIntent extends BaseIntent {
   limit?: number;
 }
 
+export interface QueryBreakdownIntent extends BaseIntent {
+  kind: "query_breakdown";
+  period?: QueryPeriod;
+}
+
+export interface QueryTopIntent extends BaseIntent {
+  kind: "query_top";
+  period?: QueryPeriod;
+  limit?: number;
+}
+
 export interface ChatTable {
+  columns?: string[];
   rows: {
     date: string;
     category: string;
     description: string;
     amount: string;
     type: "expense" | "income" | "transfer";
+    share?: number;
   }[];
 }
 
@@ -110,6 +125,8 @@ export type ParsedIntent =
   | QueryBalanceIntent
   | QuerySpendingIntent
   | QueryListIntent
+  | QueryBreakdownIntent
+  | QueryTopIntent
   | CreateTaskIntent
   | CreateReminderIntent
   | UpdateTransactionIntent
